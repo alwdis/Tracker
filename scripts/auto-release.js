@@ -1,9 +1,6 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 
-const { execSync } = require('child_process');
-const fs = require('fs');
-
 function getChangesSinceLastTag() {
   try {
     // Получаем последний тег
