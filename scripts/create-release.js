@@ -37,15 +37,21 @@ async function createRelease() {
       // Релиз не существует, продолжаем
     }
 
-    // Читаем описание релиза
-    const releaseNotesPath = `RELEASE_NOTES_v${version}.md`;
+    // Читаем описание релиза из нового шаблона
+    const releaseNotesPath = `Release/RELEASE_NOTES_v${version}.md`;
     let releaseNotes;
     
     if (fs.existsSync(releaseNotesPath)) {
       releaseNotes = fs.readFileSync(releaseNotesPath, 'utf8');
     } else {
-      // Fallback к базовому файлу
-      releaseNotes = fs.readFileSync('RELEASE_NOTES_v3.0.0.md', 'utf8');
+      // Fallback к простому шаблону
+      releaseNotes = `# Tracker v${version} - Release
+
+## 📝 Что изменилось:
+
+- Обновления и улучшения
+
+**Дата релиза**: ${new Date().toLocaleDateString('ru-RU')}`;
     }
 
     // Создаем релиз
