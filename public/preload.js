@@ -9,7 +9,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createManualBackup: () => ipcRenderer.invoke('create-manual-backup'),
   restoreFromBackup: (backupPath) => ipcRenderer.invoke('restore-from-backup', backupPath),
   getAvailableBackups: () => ipcRenderer.invoke('get-available-backups'),
-  selectBackupFile: () => ipcRenderer.invoke('select-backup-file')
+  selectBackupFile: () => ipcRenderer.invoke('select-backup-file'),
+  
+  // Google Drive Cloud Sync APIs
+  checkGoogleDriveConnection: () => ipcRenderer.invoke('check-google-drive-connection'),
+  connectToGoogleDrive: () => ipcRenderer.invoke('connect-to-google-drive'),
+  disconnectFromGoogleDrive: () => ipcRenderer.invoke('disconnect-from-google-drive'),
+  syncToCloud: () => ipcRenderer.invoke('sync-to-cloud'),
+  syncFromCloud: () => ipcRenderer.invoke('sync-from-cloud'),
+  getCloudSyncSettings: () => ipcRenderer.invoke('get-cloud-sync-settings'),
+  setCloudSyncSettings: (settings) => ipcRenderer.invoke('set-cloud-sync-settings', settings)
 });
 
 // Обработчик для диагностической информации

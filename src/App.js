@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled, { createGlobalStyle, ThemeProvider } from 'styled-components';
-import { Plus, Film, Tv, Play, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Download, Upload, Tag, Filter, RefreshCw } from 'lucide-react';
+import { Plus, Film, Tv, Play, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Download, Upload, Tag, Filter, RefreshCw, Cloud } from 'lucide-react';
 import { APP_VERSION } from './version';
 
 // Импортируем компоненты
@@ -9,7 +9,7 @@ import MediaCard from './components/MediaCard/MediaCard';
 import RatingDialog from './components/RatingDialog/RatingDialog';
 import Statistics from './components/Statistics/Statistics';
 import ImportExportDialog from './components/ImportExportDialog/ImportExportDialog';
-import BackupDialog from './components/BackupDialog/BackupDialog';
+import CloudSyncDialog from './components/CloudSyncDialog/CloudSyncDialog';
 
 /* ---------- ТЕМА ---------- */
 const lightTheme = {
@@ -452,7 +452,7 @@ function App() {
   const [editingItem, setEditingItem] = useState(null);
   const [ratingDialog, setRatingDialog] = useState({ show: false, item: null });
   const [importExportDialog, setImportExportDialog] = useState({ show: false, mode: null });
-  const [backupDialogOpen, setBackupDialogOpen] = useState(false);
+  const [cloudSyncDialogOpen, setCloudSyncDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
   const [isDarkTheme, setIsDarkTheme] = useState(true);
@@ -745,7 +745,7 @@ function App() {
             <IconButton className="warning" onClick={handleImport} title="Импорт данных"><Upload size={20}/></IconButton>
 
             {window.electronAPI && (
-              <IconButton className="info" onClick={()=>setBackupDialogOpen(true)} title="Управление бэкапами"><Download size={20}/></IconButton>
+              <IconButton className="info" onClick={()=>setCloudSyncDialogOpen(true)} title="Облачная синхронизация"><Cloud size={20}/></IconButton>
             )}
 
 
@@ -809,7 +809,7 @@ function App() {
         )}
 
         {window.electronAPI && (
-          <BackupDialog open={backupDialogOpen} onClose={()=>setBackupDialogOpen(false)} darkMode={isDarkTheme} />
+          <CloudSyncDialog open={cloudSyncDialogOpen} onClose={()=>setCloudSyncDialogOpen(false)} darkMode={isDarkTheme} />
         )}
 
         {renderInstallPrompt()}
