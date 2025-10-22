@@ -556,6 +556,8 @@ function App() {
     // Здесь будет логика установки обновления
     console.log('Installing update...');
   };
+
+  const handleImportConfirm = (importedData, merge = false) => {
     let newData;
     if (merge) {
       const ids = new Set(media.map(i => i.id));
@@ -697,7 +699,7 @@ function App() {
           )}
         </>
       );
-    }
+    
 
     return (
       <EmptyState>
