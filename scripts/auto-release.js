@@ -3,15 +3,15 @@ const fs = require('fs');
 
 function getChangesSinceLastTag() {
   try {
-    // Получаем последний тег
+    // Get last tag
     const lastTag = execSync('git describe --tags --abbrev=0', { encoding: 'utf8' }).trim();
     
-    // Получаем коммиты с последнего тега (исключаем Release коммиты)
+    // Get commits since last tag (exclude Release commits)
     const commits = execSync(`git log ${lastTag}..HEAD --oneline --pretty=format:"- %s" --grep="^Release" --invert-grep`, { encoding: 'utf8' });
     
     return commits.trim();
   } catch (error) {
-    // Если тегов нет, получаем последние коммиты (исключаем Release коммиты)
+    // If no tags, get recent commits (exclude Release commits)
     const commits = execSync('git log --oneline -10 --pretty=format:"- %s" --grep="^Release" --invert-grep', { encoding: 'utf8' });
     return commits.trim();
   }
@@ -35,25 +35,25 @@ function generateReleaseNotes(version, type) {
   
   const releaseNotes = `# Tracker v${version} - ${releaseType}
 
-## 📝 Что изменилось
+## 📝 What's Changed
 
-${changes || '- Обновления и улучшения'}
+${changes || '- Updates and improvements'}
 
-## 📥 Установка
+## 📥 Installation
 
-1. Скачайте \`Tracker-Setup-${version}.exe\` из Assets ниже
-2. Запустите установщик
-3. Следуйте инструкциям установщика
+1. Download \`Tracker-Setup-${version}.exe\` from Assets below
+2. Run the installer
+3. Follow the installer instructions
 
-## 🔄 Автообновление
+## 🔄 Auto-update
 
-Приложение автоматически проверит наличие новых версий и предложит обновление.
+The application will automatically check for new versions and offer to update.
 
 ---
 
-**Размер установщика**: ~76 МБ  
-**Версия**: ${version}  
-**Дата релиза**: ${new Date().toLocaleDateString('ru-RU')}`;
+**Installer size**: ~76 MB  
+**Version**: ${version}  
+**Release date**: ${new Date().toLocaleDateString('en-US')}`;
 
   return releaseNotes;
 }
@@ -61,16 +61,16 @@ ${changes || '- Обновления и улучшения'}
 function updateVersion(type = 'patch') {
   console.log(`Updating ${type} version...`);
   
-  // Обновляем версию в package.json
+  // Update version in package.json
   execSync(`npm version ${type}`, { stdio: 'inherit' });
   
-  // Получаем новую версию
+  // Get new version
   const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   const version = packageJson.version;
   
   console.log(`New version: ${version}`);
   
-  // Генерируем заметки о релизе
+  // Generate release notes
   const releaseNotes = generateReleaseNotes(version, type);
   const releaseNotesPath = `RELEASE_NOTES_v${version}.md`;
   
@@ -85,12 +85,12 @@ function createTagAndPush(version) {
   
   console.log(`Creating tag ${tagName}...`);
   
-  // Создаем тег
+  // Create tag
   execSync(`git add .`, { stdio: 'inherit' });
   execSync(`git commit -m "Release ${tagName}"`, { stdio: 'inherit' });
   execSync(`git tag -a ${tagName} -m "Release ${tagName}"`, { stdio: 'inherit' });
   
-  // Пушим изменения и тег
+  // Push changes and tag
   execSync(`git push`, { stdio: 'inherit' });
   execSync(`git push origin ${tagName}`, { stdio: 'inherit' });
   
