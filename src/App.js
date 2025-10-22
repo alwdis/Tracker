@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled, { createGlobalStyle, ThemeProvider } from 'styled-components';
-import { Plus, Film, Tv, Play, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Download, Upload, Tag, Filter } from 'lucide-react';
+import { Plus, Film, Tv, Play, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Download, Upload, Tag, Filter, RefreshCw } from 'lucide-react';
 import { APP_VERSION } from './version';
 
 // Импортируем компоненты
@@ -63,6 +63,7 @@ const GlobalStyle = createGlobalStyle`
 
   @keyframes pulse { 0%{opacity:1} 50%{opacity:.5} 100%{opacity:1} }
   @keyframes slideUp { from{opacity:0; transform:translateY(20px)} to{opacity:1; transform:translateY(0)} }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: ${p => p.theme.surfaceSecondary}; }
@@ -221,6 +222,30 @@ const Footer = styled.footer`
   border-top:1px solid ${p=>p.theme.border}; display:flex; flex-direction:column; gap:4px; background:${p=>p.theme.surface};
 `;
 const Version = styled.span`font-size:10px; opacity:.5; color:${p=>p.theme.accent};`;
+const UpdateButton = styled.button`
+  background: none;
+  border: none;
+  color: ${p => p.theme.textSecondary};
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+  
+  &:hover {
+    background: ${p => p.theme.surfaceSecondary};
+    opacity: 1;
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
 
 /* ---------- ДАННЫЕ/ЛОГИКА ---------- */
 
@@ -432,6 +457,7 @@ function App() {
   const [selectedTags, setSelectedTags] = useState([]);
   const [isDarkTheme, setIsDarkTheme] = useState(true);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
 
   const { isOnline, isStandalone, showInstallPrompt, installPWA, dismissInstallPrompt } = usePWA();
 
@@ -505,6 +531,23 @@ function App() {
   const handleImport = () => setImportExportDialog({ show: true, mode: 'import' });
   const handleBackup = () => setImportExportDialog({ show: true, mode: 'backup' });
   const handleExportConfirm = (format) => { exportData(media, format); setImportExportDialog({ show: false, mode: null }); };
+  
+  const checkForUpdates = async () => {
+    if (isCheckingUpdates) return;
+    
+    setIsCheckingUpdates(true);
+    try {
+      if (window.electronAPI?.checkForUpdates) {
+        await window.electronAPI.checkForUpdates();
+      } else {
+        console.log('Electron API not available');
+      }
+    } catch (error) {
+      console.error('Error checking for updates:', error);
+    } finally {
+      setTimeout(() => setIsCheckingUpdates(false), 2000); // Сброс через 2 секунды
+    }
+  };
   const handleImportConfirm = (importedData, merge = false) => {
     let newData;
     if (merge) {
@@ -773,6 +816,16 @@ function App() {
 
         <Footer>
           <Version>Tracker v{APP_VERSION}</Version>
+          <UpdateButton 
+            onClick={checkForUpdates} 
+            disabled={isCheckingUpdates}
+            title="Проверить обновления"
+          >
+            <RefreshCw size={12} style={{ 
+              animation: isCheckingUpdates ? 'spin 1s linear infinite' : 'none' 
+            }} />
+            {isCheckingUpdates ? 'Проверка...' : 'Проверить обновления'}
+          </UpdateButton>
         </Footer>
       </AppContainer>
     </ThemeProvider>
