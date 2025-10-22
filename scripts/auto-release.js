@@ -9,13 +9,13 @@ function getChangesSinceLastTag() {
     // Получаем последний тег
     const lastTag = execSync('git describe --tags --abbrev=0', { encoding: 'utf8' }).trim();
     
-    // Получаем коммиты с последнего тега
-    const commits = execSync(`git log ${lastTag}..HEAD --oneline --pretty=format:"- %s"`, { encoding: 'utf8' });
+    // Получаем коммиты с последнего тега (исключаем Release коммиты)
+    const commits = execSync(`git log ${lastTag}..HEAD --oneline --pretty=format:"- %s" --grep="^Release" --invert-grep`, { encoding: 'utf8' });
     
     return commits.trim();
   } catch (error) {
-    // Если тегов нет, получаем последние коммиты
-    const commits = execSync('git log --oneline -10 --pretty=format:"- %s"', { encoding: 'utf8' });
+    // Если тегов нет, получаем последние коммиты (исключаем Release коммиты)
+    const commits = execSync('git log --oneline -10 --pretty=format:"- %s" --grep="^Release" --invert-grep', { encoding: 'utf8' });
     return commits.trim();
   }
 }
