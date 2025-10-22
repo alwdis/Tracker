@@ -128,9 +128,18 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
       const result = await api.checkGoogleDriveConnection?.();
       setIsConnected(result?.connected || false);
       setLastSync(result?.lastSync || null);
+      
+      if (result?.needsSetup) {
+        setMessage('⚠️ Google Drive API не настроен. См. инструкцию в GOOGLE_DRIVE_SETUP.md');
+      } else if (result?.needsAuth) {
+        setMessage('🔐 Требуется авторизация в Google Drive');
+      } else if (result?.error) {
+        setMessage('❌ Ошибка подключения: ' + result.error);
+      }
     } catch (error) {
       console.error('Connection check failed:', error);
       setIsConnected(false);
+      setMessage('❌ Ошибка проверки подключения: ' + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -154,9 +163,13 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
       const result = await api.connectToGoogleDrive?.();
       if (result?.success) {
         setIsConnected(true);
-        setMessage('✅ Успешно подключено к Google Drive');
+        setMessage(result.message || '✅ Успешно подключено к Google Drive');
       } else {
-        setMessage(`❌ Ошибка подключения: ${result?.error || 'Unknown error'}`);
+        if (result?.needsSetup) {
+          setMessage('⚠️ Google Drive API не настроен. См. инструкцию в GOOGLE_DRIVE_SETUP.md');
+        } else {
+          setMessage(`❌ Ошибка подключения: ${result?.error || 'Unknown error'}`);
+        }
       }
     } catch (error) {
       setMessage(`❌ Ошибка подключения: ${error.message}`);
