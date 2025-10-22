@@ -1,21 +1,23 @@
 # Tracker v3.0.1 - 🐛 Bugfix Release
 
-## 📝 Что изменилось
+## 📝 What's Changed
 
-- Обновления и улучшения
+- Fix icon configuration and clean up project files
+- Remove unused files and scripts
+- Update release system to use English language
 
-## 📥 Установка
+## 📥 Installation
 
-1. Скачайте `Tracker-Setup-3.0.1.exe` из Assets ниже
-2. Запустите установщик
-3. Следуйте инструкциям установщика
+1. Download `Tracker-Setup-3.0.1.exe` from Assets below
+2. Run the installer
+3. Follow the installer instructions
 
-## 🔄 Автообновление
+## 🔄 Auto-update
 
-Приложение автоматически проверит наличие новых версий и предложит обновление.
+The application will automatically check for new versions and offer to update.
 
 ---
 
-**Размер установщика**: ~76 МБ  
-**Версия**: 3.0.1  
-**Дата релиза**: 22.10.2025
+**Installer size**: ~76 MB  
+**Version**: 3.0.1  
+**Release date**: 22.10.2025
