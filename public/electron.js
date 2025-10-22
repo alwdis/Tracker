@@ -16,6 +16,25 @@ try {
 let mainWindow;
 
 function createWindow() {
+  // Определяем путь к иконке
+  let iconPath;
+  if (isDev) {
+    iconPath = path.join(__dirname, '../assets/icon.ico');
+  } else {
+    // В production проверяем несколько возможных путей
+    const possiblePaths = [
+      path.join(__dirname, 'assets/icon.ico'),
+      path.join(__dirname, '../assets/icon.ico'),
+      path.join(process.resourcesPath, 'assets/icon.ico')
+    ];
+    
+    iconPath = possiblePaths.find(p => fsSync.existsSync(p));
+    if (!iconPath) {
+      console.warn('Icon file not found, using default Electron icon');
+      iconPath = undefined; // Используем иконку по умолчанию
+    }
+  }
+
   mainWindow = new BrowserWindow({
     width: 1400, height: 900, minWidth: 1000, minHeight: 700,
     webPreferences: {
@@ -25,7 +44,7 @@ function createWindow() {
       webSecurity: false // consider true and fix CORS per-host
     },
     frame: true, show: false, backgroundColor: '#1a1a1a',
-    icon: isDev ? path.join(__dirname, '../assets/icon.ico') : path.join(__dirname, 'assets/icon.ico')
+    icon: iconPath
   });
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.on('closed', () => { mainWindow = null; });
