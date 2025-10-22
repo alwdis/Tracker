@@ -67,6 +67,8 @@ app.on('ready', async () => {
   // Init auto-updater (only in prod with electron-updater installed)
   if (!isDev && autoUpdater) {
     try {
+      console.log('Initializing auto-updater...');
+      
       // Optional: use app.setAppUserModelId for Windows toast notifications
       if (process.platform === 'win32') {
         app.setAppUserModelId('com.alwdis.tracker');
@@ -81,9 +83,11 @@ app.on('ready', async () => {
         console.log('Update available:', info.version);
       });
       autoUpdater.on('download-progress', (p) => {
+        console.log('Download progress:', p.percent);
         mainWindow?.setProgressBar(p.percent / 100);
       });
       autoUpdater.on('update-downloaded', async (info) => {
+        console.log('Update downloaded:', info.version);
         mainWindow?.setProgressBar(-1);
         const res = await dialog.showMessageBox(mainWindow, {
           type: 'info',
@@ -99,10 +103,15 @@ app.on('ready', async () => {
         }
       });
 
+      console.log('Checking for updates...');
       autoUpdater.checkForUpdates().catch(console.error);
     } catch (e) {
-      console.warn('AutoUpdater init failed:', e);
+      console.error('Failed to initialize auto-updater:', e);
     }
+  } else if (isDev) {
+    console.log('Auto-updater disabled in development mode');
+  } else if (!autoUpdater) {
+    console.log('electron-updater not available');
   }
 });
 

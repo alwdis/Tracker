@@ -84,6 +84,29 @@ async function createRelease() {
       console.warn(`Installer not found at ${installerPath}`);
     }
 
+    // Загружаем latest.yml для автообновления
+    const latestYmlPath = path.join('dist', 'latest.yml');
+    if (fs.existsSync(latestYmlPath)) {
+      console.log('Uploading latest.yml...');
+      
+      const latestYmlBuffer = fs.readFileSync(latestYmlPath);
+      
+      await octokit.rest.repos.uploadReleaseAsset({
+        owner: 'alwdis',
+        repo: 'Tracker',
+        release_id: release.data.id,
+        name: 'latest.yml',
+        data: latestYmlBuffer,
+        headers: {
+          'content-type': 'text/yaml',
+        },
+      });
+
+      console.log('latest.yml uploaded successfully');
+    } else {
+      console.warn(`latest.yml not found at ${latestYmlPath}`);
+    }
+
   } catch (error) {
     console.error('Error creating release:', error);
     process.exit(1);
