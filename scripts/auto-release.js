@@ -35,25 +35,25 @@ function generateReleaseNotes(version, type) {
   
   const releaseNotes = `# Tracker v${version} - ${releaseType}
 
-## 📝 What's Changed
+## 📝 Что изменилось
 
-${changes || '- Updates and improvements'}
+${changes || '- Обновления и улучшения'}
 
-## 📥 Installation
+## 📥 Установка
 
-1. Download \`Tracker-Setup-${version}.exe\` from Assets below
-2. Run the installer
-3. Follow the installer instructions
+1. Скачайте \`Tracker-Setup-${version}.exe\` из Assets ниже
+2. Запустите установщик
+3. Следуйте инструкциям установщика
 
-## 🔄 Auto-update
+## 🔄 Автообновление
 
-The application will automatically check for new versions and offer to update.
+Приложение автоматически проверит наличие новых версий и предложит обновление.
 
 ---
 
-**Installer size**: ~76 MB  
-**Version**: ${version}  
-**Release date**: ${new Date().toLocaleDateString('en-US')}`;
+**Размер установщика**: ~76 МБ  
+**Версия**: ${version}  
+**Дата релиза**: ${new Date().toLocaleDateString('ru-RU')}`;
 
   return releaseNotes;
 }
