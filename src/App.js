@@ -699,7 +699,7 @@ function App() {
           )}
         </>
       );
-    
+    }
 
     return (
       <EmptyState>
