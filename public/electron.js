@@ -46,6 +46,12 @@ function createWindow() {
     frame: true, show: false, backgroundColor: '#1a1a1a',
     icon: iconPath
   });
+  
+  // Включаем консоль разработчика в production для диагностики
+  if (!isDev) {
+    mainWindow.webContents.openDevTools();
+  }
+  
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.on('closed', () => { mainWindow = null; });
   Menu.setApplicationMenu(null);

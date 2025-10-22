@@ -74,6 +74,7 @@
           ]
         }
       ],
+      "icon": "assets/icon.ico",
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "mac": {
