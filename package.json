@@ -24,7 +24,7 @@
     "release": "node scripts/release.js",
     "release:patch": "node scripts/release.js patch",
     "release:minor": "node scripts/release.js minor",
-    "release:major": "node scripts/release.js major"
+    "auto-release": "node scripts/auto-release.js",
   },
   "dependencies": {
     "electron-log": "^5.4.3",
@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@craco/craco": "^7.1.0",
+    "@octokit/rest": "^22.0.0",
     "concurrently": "^8.2.0",
     "cross-env": "^7.0.3",
     "electron": "^30.5.1",

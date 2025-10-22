@@ -2,7 +2,7 @@ name: Release (Windows - Smart, Fixed)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
     tags:
       - 'v*'
   pull_request:
@@ -37,7 +37,7 @@ jobs:
         run: npm install
 
       - name: Build renderer (if present)
-        run: npm run build --if-present
+        run: npm run build
 
       - name: Print versions
         run: |
