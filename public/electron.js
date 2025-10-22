@@ -65,9 +65,13 @@ app.on('ready', async () => {
   createWindow();
 
   // Init auto-updater (only in prod with electron-updater installed)
-  if (!isDev && autoUpdater) {
+  // Для тестирования можно включить в dev режиме, установив FORCE_AUTO_UPDATE=true
+  const forceAutoUpdate = process.env.FORCE_AUTO_UPDATE === 'true';
+  
+  if ((!isDev || forceAutoUpdate) && autoUpdater) {
     try {
       console.log('Initializing auto-updater...');
+      console.log('isDev:', isDev, 'forceAutoUpdate:', forceAutoUpdate);
       
       // Optional: use app.setAppUserModelId for Windows toast notifications
       if (process.platform === 'win32') {
@@ -78,9 +82,16 @@ app.on('ready', async () => {
       autoUpdater.logger = require('electron-log');
       autoUpdater.logger.transports.file.level = 'info';
 
-      autoUpdater.on('error', (e) => console.error('AutoUpdater error:', e));
+      autoUpdater.on('error', (e) => {
+        console.error('AutoUpdater error:', e);
+        console.error('Error details:', e.message, e.stack);
+      });
       autoUpdater.on('update-available', (info) => {
         console.log('Update available:', info.version);
+        console.log('Update info:', JSON.stringify(info, null, 2));
+      });
+      autoUpdater.on('update-not-available', (info) => {
+        console.log('No updates available:', info.version);
       });
       autoUpdater.on('download-progress', (p) => {
         console.log('Download progress:', p.percent);
@@ -104,14 +115,35 @@ app.on('ready', async () => {
       });
 
       console.log('Checking for updates...');
+      console.log('Current version:', app.getVersion());
+      console.log('Update server URL:', autoUpdater.getFeedURL());
+      
       autoUpdater.checkForUpdates().catch(console.error);
     } catch (e) {
       console.error('Failed to initialize auto-updater:', e);
     }
-  } else if (isDev) {
+  } else if (isDev && !forceAutoUpdate) {
     console.log('Auto-updater disabled in development mode');
+    console.log('To enable in dev mode, set FORCE_AUTO_UPDATE=true');
   } else if (!autoUpdater) {
     console.log('electron-updater not available');
+  }
+});
+
+// ===== Manual update check =====
+ipcMain.handle('manual-check-updates', async () => {
+  if (autoUpdater) {
+    console.log('Manual update check requested...');
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      console.log('Manual check result:', result);
+      return result;
+    } catch (error) {
+      console.error('Manual check failed:', error);
+      throw error;
+    }
+  } else {
+    throw new Error('Auto-updater not available');
   }
 });
 
