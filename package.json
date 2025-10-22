@@ -1,6 +1,6 @@
 {
   "name": "tracker",
-  "version": "3.0.2",
+  "version": "3.0.1",
   "description": "Personal media tracker (Films/Series/Anime).",
   "author": "alwdis",
   "license": "MIT",
@@ -74,7 +74,6 @@
           ]
         }
       ],
-      "icon": "assets/icon.ico",
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "mac": {
