@@ -1,0 +1,112 @@
+{
+  "name": "tracker",
+  "version": "3.0.0",
+  "description": "Personal media tracker (Films/Series/Anime).",
+  "author": "alwdis",
+  "license": "MIT",
+  "private": true,
+  "homepage": "./",
+  "main": "build/electron.js",
+  "engines": {
+    "node": "20.x"
+  },
+  "packageManager": "npm@10",
+  "scripts": {
+    "start": "npm run update-version && concurrently \"npm run dev\" \"npm run electron:dev\"",
+    "dev": "craco start",
+    "electron:dev": "wait-on http://localhost:3000 && cross-env ELECTRON_IS_DEV=true electron public/electron.js",
+    "update-version": "node -e \"const pkg = require('./package.json'); require('fs').writeFileSync('./src/version.js', 'export const APP_VERSION = \\'' + pkg.version + '\\';');\"",
+    "build": "npm run update-version && npm run build:react && node prepare-build.js && node simple-build.js && node -e \"require('fs').copyFileSync('public/electron.js', 'build/electron.js')\"",
+    "build:react": "craco build",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "postinstall": "electron-builder install-app-deps",
+    "release": "node scripts/release.js",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major"
+  },
+  "dependencies": {
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.6.2",
+    "lucide-react": "^0.263.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "styled-components": "^6.0.0"
+  },
+  "devDependencies": {
+    "@craco/craco": "^7.1.0",
+    "concurrently": "^8.2.0",
+    "cross-env": "^7.0.3",
+    "electron": "^30.5.1",
+    "electron-builder": "^24.13.3",
+    "file-loader": "^6.2.0",
+    "react-scripts": "^5.0.1",
+    "sharp": "^0.34.4",
+    "wait-on": "^7.0.1"
+  },
+  "build": {
+    "appId": "com.alwdis.tracker",
+    "productName": "Tracker",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "extraResources": [
+      {
+        "from": "public/electron.js",
+        "to": "electron.js"
+      }
+    ],
+    "files": [
+      "build/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "build"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "alwdis",
+        "repo": "tracker"
+      }
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
