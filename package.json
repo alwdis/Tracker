@@ -1,6 +1,6 @@
 {
   "name": "tracker",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Personal media tracker (Films/Series/Anime).",
   "author": "alwdis",
   "license": "MIT",
@@ -21,12 +21,9 @@
     "dist": "electron-builder",
     "dist:win": "electron-builder --win",
     "postinstall": "electron-builder install-app-deps",
-    "release": "node scripts/release.js",
-    "release:patch": "node scripts/release.js patch",
-    "release:minor": "node scripts/release.js minor",
     "release-patch": "node scripts/auto-release.js patch",
-    "release-minor": "node scripts/auto-release.js minor", 
-    "release-major": "node scripts/auto-release.js major",
+    "release-minor": "node scripts/auto-release.js minor",
+    "release-major": "node scripts/auto-release.js major"
   },
   "dependencies": {
     "electron-log": "^5.4.3",
@@ -44,6 +41,7 @@
     "electron": "^30.5.1",
     "electron-builder": "^24.13.3",
     "file-loader": "^6.2.0",
+    "png-to-ico": "^3.0.1",
     "react-scripts": "^5.0.1",
     "sharp": "^0.34.4",
     "wait-on": "^7.0.1"
@@ -76,16 +74,15 @@
           ]
         }
       ],
-      "icon": "build/icon.ico",
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "mac": {
       "target": "dmg",
-      "icon": "build/icon.icns"
+      "icon": "assets/icon.icns"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "build"
+      "icon": "assets"
     },
     "nsis": {
       "oneClick": false,
