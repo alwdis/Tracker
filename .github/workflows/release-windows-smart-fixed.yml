@@ -78,6 +78,7 @@ jobs:
       - name: Check if release exists
         if: startsWith(github.ref, 'refs/tags/v')
         id: check_release
+        shell: bash
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
           echo "Checking for existing release: $TAG_NAME"
@@ -113,6 +114,7 @@ jobs:
 
       - name: Update Release with Binaries
         if: startsWith(github.ref, 'refs/tags/v') && steps.check_release.outputs.exists == 'true'
+        shell: bash
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
           echo "Updating existing release: $TAG_NAME"
