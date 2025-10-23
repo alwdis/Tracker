@@ -732,13 +732,16 @@ ipcMain.handle('sync-to-yandex-disk', async () => {
       }
     }
     
-    // Создаём бэкап
-    const dataPath = path.join(app.getPath('userData'), 'tracker-data.json');
-    const backupFileName = `tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
-    const remotePath = `/Tracker/${backupFileName}`;
+    // Создаём бэкап используя ту же функцию что и для Google Drive
+    const backupResult = await createManualBackup();
+    if (!backupResult.success) {
+      throw new Error(backupResult.error);
+    }
+    
+    const remotePath = `/Tracker/${backupResult.fileName}`;
     
     // Загружаем в Яндекс.Диск
-    const uploadResult = await uploadToYandexDisk(dataPath, remotePath);
+    const uploadResult = await uploadToYandexDisk(backupResult.filePath, remotePath);
     
     if (uploadResult.success) {
       return {
@@ -763,7 +766,7 @@ ipcMain.handle('sync-from-yandex-disk', async () => {
     const listResult = await listYandexDiskFiles('/Tracker');
     
     if (!listResult.success || listResult.files.length === 0) {
-      throw new Error('No backups found in Yandex.Disk');
+      return { success: false, error: 'No backup files found in cloud' };
     }
     
     // Сортируем по дате изменения (новые первые)
@@ -776,19 +779,22 @@ ipcMain.handle('sync-from-yandex-disk', async () => {
     const downloadResult = await downloadFromYandexDisk(latestFile.filename, tempPath);
     
     if (downloadResult.success) {
-      // Восстанавливаем данные
-      const dataPath = path.join(app.getPath('userData'), 'tracker-data.json');
-      await fs.copyFile(tempPath, dataPath);
-      await fs.unlink(tempPath);
+      // Восстанавливаем данные используя ту же функцию что и для Google Drive
+      const restoreResult = await restoreFromBackup(tempPath);
       
-      return {
-        success: true,
-        message: 'Данные успешно восстановлены из Яндекс.Диска'
-      };
+      // Clean up temp file
+      try {
+        await fs.unlink(tempPath);
+      } catch (cleanupError) {
+        console.warn('Failed to clean up temp file:', cleanupError);
+      }
+      
+      return restoreResult;
     } else {
       throw new Error(downloadResult.error);
     }
   } catch (error) {
+    console.error('Failed to sync from Yandex.Disk:', error);
     return { success: false, error: error.message };
   }
 });
