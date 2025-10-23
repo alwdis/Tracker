@@ -3,21 +3,22 @@ const { app, BrowserWindow, ipcMain, Menu, dialog, globalShortcut } = require('e
 const path = require('path');
 const fsSync = require('fs');
 const fs = require('fs').promises;
-const { google } = require('googleapis');
-const { OAuth2Client } = require('google-auth-library');
 // webdav is an ES Module, so we'll load it dynamically
 
-// Load Google Drive configuration
-let googleDriveConfig;
-try {
-  googleDriveConfig = require('../config/google-drive.js');
-} catch (error) {
-  console.warn('Google Drive config not found, using defaults');
-  googleDriveConfig = {
-    GOOGLE_CLIENT_ID: 'YOUR_GOOGLE_CLIENT_ID',
-    GOOGLE_CLIENT_SECRET: 'YOUR_GOOGLE_CLIENT_SECRET'
-  };
+// Load environment variables for production
+if (process.env.NODE_ENV === 'production') {
+  const envPath = path.join(__dirname, '.env');
+  if (fsSync.existsSync(envPath)) {
+    const envContent = fsSync.readFileSync(envPath, 'utf8');
+    envContent.split('\n').forEach(line => {
+      const [key, value] = line.split('=');
+      if (key && value) {
+        process.env[key.trim()] = value.trim();
+      }
+    });
+  }
 }
+
 
 // Yandex.Disk WebDAV configuration
 let yandexClient = null;
@@ -26,8 +27,22 @@ const YANDEX_WEBDAV_URL = 'https://webdav.yandex.ru';
 // Dynamic import for webdav ES Module
 async function loadWebDAV() {
   try {
-    const { createClient } = await import('webdav');
-    return createClient;
+    // В упакованном приложении используем другой подход
+    if (app.isPackaged) {
+      // Для упакованного приложения используем require с try-catch
+      try {
+        const webdav = require('webdav');
+        return webdav.createClient;
+      } catch (requireError) {
+        console.warn('Failed to require webdav, trying dynamic import:', requireError.message);
+        const { createClient } = await import('webdav');
+        return createClient;
+      }
+    } else {
+      // В dev режиме используем динамический импорт
+      const { createClient } = await import('webdav');
+      return createClient;
+    }
   } catch (error) {
     console.error('Failed to load webdav:', error);
     throw error;
@@ -108,126 +123,8 @@ async function listYandexDiskFiles(remotePath = '/Tracker') {
   }
 }
 
-// Google Drive API configuration
-const GOOGLE_DRIVE_CONFIG = {
-  clientId: googleDriveConfig.GOOGLE_CLIENT_ID,
-  clientSecret: googleDriveConfig.GOOGLE_CLIENT_SECRET,
-  redirectUri: 'http://localhost:8888/oauth2callback',
-  scopes: [
-    'https://www.googleapis.com/auth/drive.file',
-    'https://www.googleapis.com/auth/drive.appdata',
-    'https://www.googleapis.com/auth/userinfo.profile',
-    'https://www.googleapis.com/auth/userinfo.email'
-  ]
-};
 
-let oauth2Client = null;
-let drive = null;
 
-// Google Drive API functions
-async function initializeGoogleDrive() {
-  try {
-    oauth2Client = new OAuth2Client(
-      GOOGLE_DRIVE_CONFIG.clientId,
-      GOOGLE_DRIVE_CONFIG.clientSecret,
-      GOOGLE_DRIVE_CONFIG.redirectUri
-    );
-    
-    drive = google.drive({ version: 'v3', auth: oauth2Client });
-    console.log('Google Drive API initialized');
-    return true;
-  } catch (error) {
-    console.error('Failed to initialize Google Drive API:', error);
-    return false;
-  }
-}
-
-async function getAuthUrl() {
-  if (!oauth2Client) await initializeGoogleDrive();
-  
-  const authUrl = oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: GOOGLE_DRIVE_CONFIG.scopes,
-  });
-  
-  return authUrl;
-}
-
-async function saveTokens(tokens) {
-  try {
-    const tokensPath = path.join(app.getPath('userData'), 'google-tokens.json');
-    await fs.writeFile(tokensPath, JSON.stringify(tokens, null, 2));
-    console.log('Google tokens saved');
-    return true;
-  } catch (error) {
-    console.error('Failed to save tokens:', error);
-    return false;
-  }
-}
-
-async function loadTokens() {
-  try {
-    const tokensPath = path.join(app.getPath('userData'), 'google-tokens.json');
-    const tokensData = await fs.readFile(tokensPath, 'utf8');
-    return JSON.parse(tokensData);
-  } catch (error) {
-    console.log('No saved tokens found');
-    return null;
-  }
-}
-
-async function uploadToGoogleDrive(filePath, fileName) {
-  try {
-    if (!drive) await initializeGoogleDrive();
-    
-    const fileMetadata = {
-      name: fileName,
-      parents: ['appDataFolder'] // Store in app-specific folder
-    };
-    
-    const media = {
-      mimeType: 'application/json',
-      body: fsSync.createReadStream(filePath)
-    };
-    
-    const response = await drive.files.create({
-      resource: fileMetadata,
-      media: media,
-      fields: 'id,name'
-    });
-    
-    console.log('File uploaded to Google Drive:', response.data);
-    return { success: true, fileId: response.data.id };
-  } catch (error) {
-    console.error('Failed to upload to Google Drive:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-async function downloadFromGoogleDrive(fileId, localPath) {
-  try {
-    if (!drive) await initializeGoogleDrive();
-    
-    const response = await drive.files.get({
-      fileId: fileId,
-      alt: 'media'
-    }, { responseType: 'stream' });
-    
-    const writeStream = fsSync.createWriteStream(localPath);
-    response.data.pipe(writeStream);
-    
-    return new Promise((resolve, reject) => {
-      writeStream.on('finish', () => {
-        console.log('File downloaded from Google Drive');
-        resolve({ success: true });
-      });
-      writeStream.on('error', reject);
-    });
-  } catch (error) {
-    console.error('Failed to download from Google Drive:', error);
-    return { success: false, error: error.message };
-  }
-}
 
 const isDev = process.env.ELECTRON_IS_DEV === 'true' || (!app.isPackaged && process.defaultApp);
 console.log('=== APP STARTUP DEBUG ===');
@@ -538,17 +435,18 @@ ipcMain.handle('manual-check-updates', async () => {
 
 // ===== Local update.json check (legacy) =====
 ipcMain.handle('check-for-updates', async () => {
-  try {
-    const appPath = app.getAppPath();
-    const updateFile = path.join(path.dirname(appPath), 'update.json');
-    if (fsSync.existsSync(updateFile)) {
-      const updateInfo = JSON.parse(await fs.readFile(updateFile, 'utf8'));
-      return updateInfo;
+  if (autoUpdater) {
+    console.log('Manual update check requested...');
+    try {
+      await autoUpdater.checkForUpdates();
+      // Результат будет отправлен через события auto-updater-event
+      return { success: true };
+    } catch (error) {
+      console.error('Manual check failed:', error);
+      throw error;
     }
-    return null;
-  } catch (e) {
-    console.error('check-for-updates error:', e);
-    return null;
+  } else {
+    throw new Error('Auto-updater not available');
   }
 });
 
@@ -607,15 +505,33 @@ ipcMain.handle('write-media-data', async (event, data) => {
 
 async function createManualBackup() {
   try {
+    console.log('createManualBackup: Starting...');
     await ensureUserDataDir();
+    
+    // Создаем папку Backup внутри папки приложения
+    const appDir = path.dirname(process.execPath);
+    const backupDir = path.join(appDir, 'Backup');
+    console.log('createManualBackup: App dir:', appDir);
+    console.log('createManualBackup: Backup dir:', backupDir);
+    
+    if (!fsSync.existsSync(backupDir)) {
+      console.log('createManualBackup: Creating backup directory:', backupDir);
+      await fs.mkdir(backupDir, { recursive: true });
+    } else {
+      console.log('createManualBackup: Backup directory already exists:', backupDir);
+    }
+    
     const src = dataFile();
     const d = new Date();
     const stamp = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}__${String(d.getHours()).padStart(2,'0')}-${String(d.getMinutes()).padStart(2,'0')}`;
     let data = [];
     if (fsSync.existsSync(src)) data = JSON.parse(await fs.readFile(src, 'utf8'));
     const fileName = `tracker-backup-${stamp}.json`;
-    const dest = path.join(desktopDir, fileName);
+    // Сохраняем в папку Backup
+    const dest = path.join(backupDir, fileName);
+    console.log('createManualBackup: Saving backup to:', dest);
     await fs.writeFile(dest, JSON.stringify(data, null, 2), 'utf8');
+    console.log('createManualBackup: Backup saved successfully');
     return { success: true, fileName, filePath: dest, itemCount: Array.isArray(data) ? data.length : 0 };
   } catch (error) {
     console.error('createManualBackup error:', error);
@@ -638,21 +554,42 @@ async function restoreFromBackup(backupPath) {
 
 async function getAvailableBackups() {
   try {
+    console.log('getAvailableBackups: Starting search...');
     const candidates = [];
-    for (const dir of [desktopDir, userDataDir()]) {
+    // Ищем в папке Backup внутри папки приложения
+    const appDir = path.dirname(process.execPath);
+    const backupDir = path.join(appDir, 'Backup');
+    console.log('getAvailableBackups: App dir:', appDir);
+    console.log('getAvailableBackups: Backup dir:', backupDir);
+    
+    // Также проверяем старые места для совместимости
+    const searchDirs = [backupDir, path.join(userDataDir(), 'Backup'), app.getPath('desktop'), userDataDir()];
+    console.log('getAvailableBackups: Search directories:', searchDirs);
+    
+    for (const dir of searchDirs) {
       try {
+        console.log('getAvailableBackups: Checking directory:', dir);
+        if (!fsSync.existsSync(dir)) {
+          console.log('getAvailableBackups: Directory does not exist:', dir);
+          continue;
+        }
         const files = await fs.readdir(dir);
+        console.log('getAvailableBackups: Files in', dir, ':', files);
         for (const f of files) {
           if (/tracker-backup-.*\\.json$/i.test(f)) {
             const p = path.join(dir, f);
             const stat = await fs.stat(p);
             let itemCount = 0;
             try { itemCount = JSON.parse(fsSync.readFileSync(p, 'utf8')).length || 0; } catch {}
-            candidates.push({ fileName: f, filePath: p, size: stat.size, date: stat.mtimeMs, itemCount });
+            console.log('getAvailableBackups: Found backup:', f, 'at', p);
+            candidates.push({ name: f, fileName: f, filePath: p, size: stat.size, date: stat.mtimeMs, itemCount });
           }
         }
-      } catch (_) {}
+      } catch (error) {
+        console.log('getAvailableBackups: Error checking directory', dir, ':', error.message);
+      }
     }
+    console.log('getAvailableBackups: Found candidates:', candidates.length);
     candidates.sort((a, b) => b.date - a.date);
     return candidates;
   } catch (error) {
@@ -665,13 +602,20 @@ ipcMain.handle('create-manual-backup', async () => createManualBackup());
 ipcMain.handle('restore-from-backup', async (event, backupPath) => restoreFromBackup(backupPath));
 ipcMain.handle('get-available-backups', async () => getAvailableBackups());
 ipcMain.handle('select-backup-file', async () => {
+  // По умолчанию открываем папку приложения
+  const appDir = path.dirname(process.execPath);
+  const backupDir = path.join(appDir, 'Backup');
+  
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Выберите файл бэкапа',
-    filters: [{ name: 'JSON', extensions: ['json'] }],
-    properties: ['openFile']
+    defaultPath: backupDir,
+    properties: ['openFile'],
+    filters: [{ name: 'JSON Files', extensions: ['json'] }]
   });
-  if (result.canceled || !result.filePaths?.length) return null;
-  return result.filePaths[0];
+  if (result.canceled) {
+    return { canceled: true };
+  }
+  return { canceled: false, filePath: result.filePaths[0] };
 });
 
 // Yandex.Disk WebDAV handlers
@@ -732,7 +676,7 @@ ipcMain.handle('sync-to-yandex-disk', async () => {
       }
     }
     
-    // Создаём бэкап используя ту же функцию что и для Google Drive
+           // Создаём бэкап
     const backupResult = await createManualBackup();
     if (!backupResult.success) {
       throw new Error(backupResult.error);
@@ -779,7 +723,7 @@ ipcMain.handle('sync-from-yandex-disk', async () => {
     const downloadResult = await downloadFromYandexDisk(latestFile.filename, tempPath);
     
     if (downloadResult.success) {
-      // Восстанавливаем данные используя ту же функцию что и для Google Drive
+             // Восстанавливаем данные
       const restoreResult = await restoreFromBackup(tempPath);
       
       // Clean up temp file
@@ -799,171 +743,7 @@ ipcMain.handle('sync-from-yandex-disk', async () => {
   }
 });
 
-// Google Drive API handlers
-ipcMain.handle('check-google-drive-connection', async () => {
-  try {
-    // Проверяем, настроен ли Google Drive API
-    if (GOOGLE_DRIVE_CONFIG.clientId === 'YOUR_GOOGLE_CLIENT_ID') {
-      return { 
-        connected: false, 
-        error: 'Google Drive API не настроен. См. инструкцию в GOOGLE_DRIVE_SETUP.md',
-        needsSetup: true
-      };
-    }
-    
-    const tokens = await loadTokens();
-    if (!tokens) {
-      return { connected: false, needsAuth: true };
-    }
-    
-    oauth2Client.setCredentials(tokens);
-    
-    // Test the connection by getting user info
-    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
-    const userInfo = await oauth2.userinfo.get();
-    
-    return { 
-      connected: true, 
-      user: userInfo.data,
-      lastSync: tokens.lastSync || null
-    };
-  } catch (error) {
-    console.error('Google Drive connection check failed:', error);
-    return { 
-      connected: false, 
-      error: error.message,
-      needsAuth: error.message.includes('invalid_grant') || error.message.includes('unauthorized')
-    };
-  }
-});
 
-ipcMain.handle('connect-to-google-drive', async () => {
-  try {
-    // Проверяем, настроен ли Google Drive API
-    if (GOOGLE_DRIVE_CONFIG.clientId === 'YOUR_GOOGLE_CLIENT_ID') {
-      return { 
-        success: false, 
-        error: 'Google Drive API не настроен. См. инструкцию в GOOGLE_DRIVE_SETUP.md',
-        needsSetup: true
-      };
-    }
-    
-    const authUrl = await getAuthUrl();
-    
-    // Open auth URL in default browser
-    const { shell } = require('electron');
-    await shell.openExternal(authUrl);
-    
-    return { 
-      success: true, 
-      authUrl,
-      message: 'Откройте браузер и авторизуйтесь в Google Drive. После авторизации вернитесь в приложение.'
-    };
-  } catch (error) {
-    console.error('Failed to initiate Google Drive connection:', error);
-    return { 
-      success: false, 
-      error: error.message,
-      needsSetup: error.message.includes('invalid_client')
-    };
-  }
-});
-
-ipcMain.handle('disconnect-from-google-drive', async () => {
-  try {
-    const tokensPath = path.join(app.getPath('userData'), 'google-tokens.json');
-    if (fsSync.existsSync(tokensPath)) {
-      await fs.unlink(tokensPath);
-    }
-    
-    oauth2Client = null;
-    drive = null;
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Failed to disconnect from Google Drive:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('sync-to-cloud', async () => {
-  try {
-    // Create backup file
-    const backupResult = await createManualBackup();
-    if (!backupResult.success) {
-      return { success: false, error: 'Failed to create backup' };
-    }
-    
-    // Upload to Google Drive
-    const uploadResult = await uploadToGoogleDrive(
-      backupResult.filePath, 
-      `tracker-backup-${new Date().toISOString().split('T')[0]}.json`
-    );
-    
-    if (uploadResult.success) {
-      // Update last sync time
-      const tokens = await loadTokens();
-      if (tokens) {
-        tokens.lastSync = new Date().toISOString();
-        await saveTokens(tokens);
-      }
-    }
-    
-    return uploadResult;
-  } catch (error) {
-    console.error('Failed to sync to cloud:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('sync-from-cloud', async () => {
-  try {
-    if (!drive) {
-      const tokens = await loadTokens();
-      if (!tokens) {
-        return { success: false, error: 'Not connected to Google Drive' };
-      }
-      oauth2Client.setCredentials(tokens);
-      drive = google.drive({ version: 'v3', auth: oauth2Client });
-    }
-    
-    // List files in app folder
-    const response = await drive.files.list({
-      q: "parents in 'appDataFolder' and name contains 'tracker-backup'",
-      orderBy: 'createdTime desc',
-      pageSize: 1
-    });
-    
-    if (response.data.files.length === 0) {
-      return { success: false, error: 'No backup files found in cloud' };
-    }
-    
-    const latestFile = response.data.files[0];
-    const tempPath = path.join(app.getPath('temp'), latestFile.name);
-    
-    // Download the latest backup
-    const downloadResult = await downloadFromGoogleDrive(latestFile.id, tempPath);
-    
-    if (downloadResult.success) {
-      // Restore from backup
-      const restoreResult = await restoreFromBackup(tempPath);
-      
-      // Clean up temp file
-      try {
-        await fs.unlink(tempPath);
-      } catch (cleanupError) {
-        console.warn('Failed to clean up temp file:', cleanupError);
-      }
-      
-      return restoreResult;
-    }
-    
-    return downloadResult;
-  } catch (error) {
-    console.error('Failed to sync from cloud:', error);
-    return { success: false, error: error.message };
-  }
-});
 
 ipcMain.handle('get-cloud-sync-settings', async () => {
   try {
@@ -996,3 +776,4 @@ app.on('will-quit', () => {
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+

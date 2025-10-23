@@ -42,6 +42,7 @@ client_secret_*.json
 credentials.json
 google-tokens.json
 config/google-drive.js
+config/google-drive-builtin.js
 .env
 .env.local
 .env.production

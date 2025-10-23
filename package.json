@@ -1,6 +1,6 @@
 {
   "name": "tracker",
-  "version": "3.3.6",
+  "version": "4.0.0",
   "description": "Personal media tracker (Films/Series/Anime).",
   "author": "alwdis",
   "license": "MIT",
@@ -14,7 +14,7 @@
   "scripts": {
     "start": "npm run update-version && concurrently \"npm run dev\" \"wait-on http://localhost:3000 && npm run electron:dev\"",
     "dev": "craco start",
-    "electron:dev": "cross-env ELECTRON_IS_DEV=true electron public/electron.js",
+    "electron:prod": "cd build; npx electron electron.js",
     "update-version": "node -e \"const pkg = require('./package.json'); require('fs').writeFileSync('./src/version.js', 'export const APP_VERSION = \\'' + pkg.version + '\\';');\"",
     "build": "npm run update-version && npm run build:react && node prepare-build.js && node simple-build.js && node -e \"require('fs').copyFileSync('public/electron.js', 'build/electron.js')\"",
     "build:react": "craco build",
@@ -60,7 +60,7 @@
     },
     "extraResources": [
       {
-        "from": "public/electron.js",
+        "from": "build/electron.js",
         "to": "electron.js"
       }
     ],

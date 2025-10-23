@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled, { createGlobalStyle, ThemeProvider } from 'styled-components';
-import { Plus, Film, Tv, Play, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Download, Upload, Tag, Filter, RefreshCw, Cloud } from 'lucide-react';
+import { Plus, Film, Tv, Play, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Tag, Filter, RefreshCw, Cloud, Database } from 'lucide-react';
 import { APP_VERSION } from './version';
 
 // Импортируем компоненты
@@ -8,8 +8,10 @@ import AddDialog from './components/AddDialog/AddDialog';
 import MediaCard from './components/MediaCard/MediaCard';
 import RatingDialog from './components/RatingDialog/RatingDialog';
 import Statistics from './components/Statistics/Statistics';
-import ImportExportDialog from './components/ImportExportDialog/ImportExportDialog';
 import CloudSyncDialog from './components/CloudSyncDialog/CloudSyncDialog';
+import BackupDialog from './components/BackupDialog/BackupDialog';
+import UpdateDialog from './components/UpdateDialog/UpdateDialog';
+import UpdateButtonComponent from './components/UpdateButton/UpdateButton';
 
 /* ---------- ТЕМА ---------- */
 const lightTheme = {
@@ -217,11 +219,6 @@ const FloatingAddButton = styled.button`
   &:hover{ transform:translateY(-2px) scale(1.05); box-shadow:0 12px 40px rgba(102,126,234,.6); }
 `;
 
-const Footer = styled.footer`
-  text-align:center; padding:15px; color:${p=>p.theme.textTertiary}; font-size:12px;
-  border-top:1px solid ${p=>p.theme.border}; display:flex; flex-direction:column; gap:4px; background:${p=>p.theme.surface};
-`;
-const Version = styled.span`font-size:10px; opacity:.5; color:${p=>p.theme.accent};`;
 const UpdateButton = styled.button`
   background: none;
   border: none;
@@ -358,91 +355,6 @@ const smartSearch = (items, query, selectedTags = []) => {
   });
 };
 
-// Экспорт/импорт
-const exportData = (media, format = 'json') => {
-  const data = {
-    version: '1.1.3',
-    exportDate: new Date().toISOString(),
-    totalItems: media.length,
-    data: media
-  };
-
-  if (format === 'json') {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-    return true;
-  }
-  if (format === 'csv') {
-    const headers = ['Title','Type','Status','Rating','WatchedEpisodes','TotalEpisodes','Comment','URL','Tags'];
-    const rows = [
-      headers.join(','),
-      ...media.map(item => [
-        `"${(item.title || '').replace(/"/g,'""')}"`,
-        item.type || '',
-        item.status || '',
-        item.rating ?? '',
-        item.watchedEpisodes ?? '',
-        item.totalEpisodes ?? '',
-        `"${(item.comment || '').replace(/"/g,'""')}"`,
-        `"${item.url || ''}"`,
-        `"${(item.tags || []).join(', ')}"`
-      ].join(','))
-    ];
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `tracker-export-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-    return true;
-  }
-  return false;
-};
-
-const importData = (file, callback) => {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const content = e.target.result;
-      let imported;
-      if (file.name.endsWith('.json')) {
-        imported = JSON.parse(content);
-        if (!imported.data || !Array.isArray(imported.data)) throw new Error('Неверный формат файла. Ожидается JSON с полем "data".');
-        callback(imported.data);
-      } else if (file.name.endsWith('.csv')) {
-        const lines = content.split('\n').filter(l => l.trim());
-        const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim());
-        const data = lines.slice(1).map(line => {
-          const values = line.split(',').map(v => v.replace(/^"|"$/g,'').trim());
-          const row = {};
-          headers.forEach((h,i)=> row[h.toLowerCase()] = values[i] || '');
-          return {
-            title: row.title,
-            type: row.type || 'anime',
-            status: row.status || 'planned',
-            rating: row.rating ? parseInt(row.rating) : 0,
-            watchedEpisodes: row.watchedepisodes ? parseInt(row.watchedepisodes) : 0, // фикс
-            totalEpisodes: row.totalepisodes ? parseInt(row.totalepisodes) : undefined,
-            comment: row.comment || '',
-            url: row.url || '',
-            tags: row.tags ? row.tags.split(',').map(t=>t.trim()).filter(Boolean) : [],
-            id: Date.now().toString() + Math.random().toString(36).slice(2, 11),
-            createdAt: new Date().toISOString()
-          };
-        });
-        callback(data);
-      } else {
-        throw new Error('Неподдерживаемый формат файла. Используйте JSON или CSV.');
-      }
-    } catch (err) {
-      callback(null, err.message);
-    }
-  };
-  reader.onerror = () => callback(null, 'Ошибка чтения файла');
-  reader.readAsText(file);
-};
 
 /* ---------- APP ---------- */
 function App() {
@@ -451,8 +363,12 @@ function App() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [ratingDialog, setRatingDialog] = useState({ show: false, item: null });
-  const [importExportDialog, setImportExportDialog] = useState({ show: false, mode: null });
   const [cloudSyncDialogOpen, setCloudSyncDialogOpen] = useState(false);
+  const [backupDialogOpen, setBackupDialogOpen] = useState(false);
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState('not-available');
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
   const [isDarkTheme, setIsDarkTheme] = useState(true);
@@ -465,6 +381,48 @@ function App() {
     loadMediaData();
     const savedTheme = localStorage.getItem('tracker-theme');
     if (savedTheme) setIsDarkTheme(savedTheme === 'dark');
+  }, []);
+
+  useEffect(() => {
+    if (window.electronAPI) {
+      const handleUpdateStatus = (event, data) => {
+        console.log('Update status received:', data);
+        
+        switch (data.type) {
+          case 'update-available':
+            setUpdateInfo({ version: data.version });
+            setUpdateStatus('available');
+            setIsCheckingUpdates(false);
+            break;
+          case 'update-not-available':
+            setUpdateStatus('not-available');
+            setIsCheckingUpdates(false);
+            break;
+          case 'download-progress':
+            setUpdateStatus('downloading');
+            setDownloadProgress(data.percent || 0);
+            break;
+          case 'update-downloaded':
+            setUpdateStatus('downloaded');
+            break;
+          case 'error':
+            setUpdateStatus('error');
+            setIsCheckingUpdates(false);
+            console.error('Update error:', data.error);
+            break;
+          default:
+            console.log('Unknown update event:', data.type);
+        }
+      };
+
+      window.electronAPI.onUpdateStatus(handleUpdateStatus);
+      
+      return () => {
+        if (window.electronAPI?.removeUpdateStatusListener) {
+          window.electronAPI.removeUpdateStatusListener(handleUpdateStatus);
+        }
+      };
+    }
   }, []);
 
   const toggleTheme = () => {
@@ -527,35 +485,56 @@ function App() {
   const handleRatingSave = (id, rating, comment) => { updateMediaItem(id, { rating, comment }); setRatingDialog({ show: false, item: null }); };
   const clearSearch = () => setSearchQuery('');
 
-  const handleExport = () => setImportExportDialog({ show: true, mode: 'export' });
-  const handleImport = () => setImportExportDialog({ show: true, mode: 'import' });
-  const handleBackup = () => setImportExportDialog({ show: true, mode: 'backup' });
-  const handleExportConfirm = (format) => { exportData(media, format); setImportExportDialog({ show: false, mode: null }); };
   
   const checkForUpdates = async () => {
     if (isCheckingUpdates) return;
     
     setIsCheckingUpdates(true);
+    setUpdateStatus('checking');
+    
     try {
       if (window.electronAPI?.checkForUpdates) {
         await window.electronAPI.checkForUpdates();
+        // Результат будет получен через событие 'update-status'
+        // Не устанавливаем статус здесь, ждем события
       } else {
         console.log('Electron API not available');
+        setUpdateStatus('error');
       }
     } catch (error) {
       console.error('Error checking for updates:', error);
+      setUpdateStatus('error');
     } finally {
-      setTimeout(() => setIsCheckingUpdates(false), 2000); // Сброс через 2 секунды
+      setTimeout(() => setIsCheckingUpdates(false), 2000);
     }
   };
-  const handleImportConfirm = (importedData, merge = false) => {
-    let newData;
-    if (merge) {
-      const ids = new Set(media.map(i => i.id));
-      newData = [...media, ...importedData.filter(i => !ids.has(i.id))];
-    } else newData = importedData;
-    saveMediaData(newData);
-    setImportExportDialog({ show: false, mode: null });
+
+  const downloadUpdate = async () => {
+    try {
+      setUpdateStatus('downloading');
+      const result = await window.electronAPI.downloadUpdate();
+      
+      if (result.success) {
+        setUpdateStatus('downloaded');
+      } else {
+        setUpdateStatus('error');
+        console.error('Download error:', result.error);
+      }
+    } catch (error) {
+      console.error('Error downloading update:', error);
+      setUpdateStatus('error');
+    }
+  };
+
+  const installUpdate = async () => {
+    try {
+      const result = await window.electronAPI.installUpdate();
+      if (!result.success) {
+        console.error('Install error:', result.error);
+      }
+    } catch (error) {
+      console.error('Error installing update:', error);
+    }
   };
 
   const toggleTag = (tag) => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
@@ -741,13 +720,31 @@ function App() {
           )}
 
           <HeaderControls>
-            <IconButton className="success" onClick={handleExport} title="Экспорт данных"><Download size={20}/></IconButton>
-            <IconButton className="warning" onClick={handleImport} title="Импорт данных"><Upload size={20}/></IconButton>
 
-            {typeof window !== 'undefined' && window.electronAPI && (
-              <IconButton className="info" onClick={()=>setCloudSyncDialogOpen(true)} title="Облачная синхронизация"><Cloud size={20}/></IconButton>
-            )}
+                   {typeof window !== 'undefined' && window.electronAPI && (
+                     <IconButton className="info" onClick={() => {
+                       console.log('App: Opening CloudSyncDialog');
+                       setCloudSyncDialogOpen(true);
+                     }} title="Облачная синхронизация"><Cloud size={20}/></IconButton>
+                   )}
 
+                   {typeof window !== 'undefined' && window.electronAPI && (
+                     <IconButton className="warning" onClick={() => {
+                       console.log('App: Opening BackupDialog');
+                       setBackupDialogOpen(true);
+                     }} title="Управление бэкапами"><Database size={20}/></IconButton>
+                   )}
+
+                   {typeof window !== 'undefined' && window.electronAPI && (
+                     <UpdateButtonComponent 
+                       currentVersion={APP_VERSION}
+                       updateStatus={updateStatus}
+                       downloadProgress={downloadProgress}
+                       updateInfo={updateInfo}
+                       onClick={() => setUpdateDialogOpen(true)}
+                       theme={isDarkTheme ? darkTheme : lightTheme}
+                     />
+                   )}
 
             <ThemeToggle onClick={toggleTheme} title={isDarkTheme ? 'Светлая тема' : 'Тёмная тема'}>
               {isDarkTheme ? <Sun size={20}/> : <Moon size={20}/>}
@@ -797,36 +794,41 @@ function App() {
           <RatingDialog item={ratingDialog.item} onClose={()=>setRatingDialog({show:false, item:null})} onSave={handleRatingSave} isDarkTheme={isDarkTheme} />
         )}
 
-        {importExportDialog.show && (
-          <ImportExportDialog
-            mode={importExportDialog.mode}
-            onClose={()=>setImportExportDialog({ show:false, mode:null })}
-            onExport={handleExportConfirm}
-            onImport={handleImportConfirm}
-            currentDataCount={media.length}
-            isDarkTheme={isDarkTheme}
-          />
+
+        {window.electronAPI && cloudSyncDialogOpen && (
+          <CloudSyncDialog open={cloudSyncDialogOpen} onClose={() => {
+            console.log('App: Closing CloudSyncDialog');
+            setCloudSyncDialogOpen(false);
+          }} darkMode={isDarkTheme} />
         )}
 
-        {window.electronAPI && (
-          <CloudSyncDialog open={cloudSyncDialogOpen} onClose={()=>setCloudSyncDialogOpen(false)} darkMode={isDarkTheme} />
+        {window.electronAPI && backupDialogOpen && (
+          <BackupDialog open={backupDialogOpen} onClose={() => {
+            console.log('App: Closing BackupDialog');
+            setBackupDialogOpen(false);
+          }} darkMode={isDarkTheme} />
+        )}
+
+        {window.electronAPI && updateDialogOpen && (
+          <UpdateDialog 
+            open={updateDialogOpen} 
+            onClose={() => {
+              console.log('App: Closing UpdateDialog');
+              setUpdateDialogOpen(false);
+            }} 
+            darkMode={isDarkTheme}
+            currentVersion={APP_VERSION}
+            updateInfo={updateInfo}
+            updateStatus={updateStatus}
+            downloadProgress={downloadProgress}
+            onCheckUpdates={checkForUpdates}
+            onDownloadUpdate={downloadUpdate}
+            onInstallUpdate={installUpdate}
+          />
         )}
 
         {renderInstallPrompt()}
 
-        <Footer>
-          <Version>Tracker v{APP_VERSION}</Version>
-          <UpdateButton 
-            onClick={checkForUpdates} 
-            disabled={isCheckingUpdates}
-            title="Проверить обновления"
-          >
-            <RefreshCw size={12} style={{ 
-              animation: isCheckingUpdates ? 'spin 1s linear infinite' : 'none' 
-            }} />
-            {isCheckingUpdates ? 'Проверка...' : 'Проверить обновления'}
-          </UpdateButton>
-        </Footer>
       </AppContainer>
     </ThemeProvider>
   );

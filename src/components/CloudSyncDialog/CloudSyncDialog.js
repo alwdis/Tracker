@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import styled, { ThemeProvider } from 'styled-components';
 import { X, Cloud, CloudOff, Download, Upload, Settings, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 
-const light = {
+// Теми для диалогов
+const lightTheme = {
   background: '#ffffff',
   surface: '#f8fafc',
   text: '#334155',
@@ -13,111 +14,253 @@ const light = {
   warning: '#f59e0b',
   error: '#ef4444'
 };
-const dark = {
-  background: '#0b1220',
-  surface: '#0f172a',
-  text: '#e2e8f0',
-  textSecondary: '#94a3b8',
-  border: '#1f2937',
-  accent: '#8b5cf6',
-  success: '#10b981',
-  warning: '#f59e0b',
+
+const darkTheme = {
+  background: '#1a1a1a',
+  surface: '#2d2d2d',
+  text: '#ffffff',
+  textSecondary: 'rgba(255, 255, 255, 0.8)',
+  border: 'rgba(255, 255, 255, 0.1)',
+  accent: '#667eea',
+  success: '#22c55e',
+  warning: '#eab308',
   error: '#ef4444'
 };
 
 const Overlay = styled.div`
-  position: fixed; inset: 0; background: rgba(0,0,0,.5);
-  display: ${p => (p.$open ? 'flex' : 'none')}; align-items: center; justify-content: center; z-index: 9999;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 `;
-const Dialog = styled.div`
-  width: 640px; max-width: calc(100vw - 24px);
-  background: ${p => p.theme.background}; border: 1px solid ${p => p.theme.border};
-  border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.35);
-`;
-const Header = styled.div`
-  display:flex; align-items:center; justify-content:space-between;
-  padding: 14px 18px; border-bottom: 1px solid ${p => p.theme.border};
-`;
-const Title = styled.h3`
-  font-size:16px; font-weight:700; color:${p => p.theme.text};
-`;
-const Close = styled.button`
-  border:none; background:transparent; color:${p => p.theme.textSecondary}; cursor:pointer; padding:6px; border-radius:8px;
-  &:hover{ background:${p => p.theme.surface}; }
-`;
-const Body = styled.div` padding: 18px; display:flex; flex-direction: column; gap:18px; `;
 
-const ProviderSelector = styled.div`
-  display: flex; gap: 12px;
+const Dialog = styled.div`
+  background: ${props => props.theme.background};
+  border-radius: 24px;
+  padding: 32px;
+  width: 90%;
+  max-width: 500px;
+  border: 1px solid ${props => props.theme.border};
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
 `;
-const ProviderButton = styled.button`
-  flex: 1; padding: 12px; border-radius: 12px; cursor: pointer; font-weight: 600;
-  background: ${p => p.$active ? p.theme.accent : p.theme.surface};
-  color: ${p => p.$active ? 'white' : p.theme.text};
-  border: 1px solid ${p => p.$active ? p.theme.accent : p.theme.border};
-  transition: .2s;
-  &:hover{ transform: translateY(-1px); }
+
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+`;
+
+const Title = styled.h2`
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-align: center;
+  flex: 1;
+  color: ${props => props.theme.text};
+`;
+
+const CloseButton = styled.button`
+  background: ${props => props.theme.surface};
+  border: 1px solid ${props => props.theme.border};
+  border-radius: 12px;
+  padding: 8px;
+  color: ${props => props.theme.text};
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: ${props => props.theme.accent};
+    color: white;
+  }
+`;
+
+const Content = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+`;
+
+const Section = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const SectionTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${props => props.theme.text};
+  display: flex;
+  align-items: center;
+  gap: 8px;
 `;
 
 const StatusCard = styled.div`
-  background: ${p => p.theme.surface}; border: 1px solid ${p => p.theme.border};
-  border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px;
+  background: ${props => props.theme.surface};
+  border: 1px solid ${props => props.theme.border};
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
 `;
+
 const StatusIcon = styled.div`
-  width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  background: ${p => p.$connected ? p.theme.success : p.theme.error}; color: white;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: ${props => props.$connected ? props.theme.success : props.theme.error};
+  color: white;
 `;
+
 const StatusText = styled.div`
   flex: 1;
-  h4 { margin: 0; font-size: 14px; font-weight: 600; color: ${p => p.theme.text}; }
-  p { margin: 4px 0 0; font-size: 12px; color: ${p => p.theme.textSecondary}; }
+  
+  h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: ${props => props.theme.text};
+  }
+  
+  p {
+    margin: 4px 0 0;
+    font-size: 14px;
+    color: ${props => props.theme.textSecondary};
+  }
 `;
 
 const Input = styled.input`
-  width: 100%; padding: 12px; border-radius: 12px;
-  background: ${p => p.theme.surface}; border: 1px solid ${p => p.theme.border};
-  color: ${p => p.theme.text}; font-size: 14px;
-  &:focus{ outline: none; border-color: ${p => p.theme.accent}; }
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid ${props => props.theme.border};
+  border-radius: 12px;
+  background: ${props => props.theme.surface};
+  color: ${props => props.theme.text};
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: ${props => props.theme.accent};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 const ActionButton = styled.button`
-  width: 100%; display: flex; gap: 10px; align-items: center; justify-content: center;
-  background: ${p => p.$primary ? p.theme.accent : p.theme.surface}; 
-  color: ${p => p.$primary ? 'white' : p.theme.text}; 
-  border: 1px solid ${p => p.$primary ? p.theme.accent : p.theme.border};
-  border-radius: 12px; padding: 12px; cursor: pointer; font-weight: 600; transition: .2s;
-  &:hover{ 
-    transform: translateY(-1px); 
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  width: 100%;
+  padding: 16px 20px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: all 0.3s ease;
+
+  &.primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
   }
-  &:disabled{ 
-    opacity: 0.5; cursor: not-allowed; 
-    &:hover{ transform: none; box-shadow: none; }
+
+  &.secondary {
+    background: ${props => props.theme.surface};
+    color: ${props => props.theme.text};
+    border: 1px solid ${props => props.theme.border};
+
+    &:hover:not(:disabled) {
+      background: ${props => props.theme.background};
+      transform: translateY(-1px);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
   }
 `;
 
 const Message = styled.div`
-  padding: 12px; border-radius: 12px; font-size: 14px;
-  background: ${p => {
-    if (p.$type === 'success') return p.theme.success + '20';
-    if (p.$type === 'error') return p.theme.error + '20';
-    return p.theme.warning + '20';
-  }};
-  color: ${p => {
-    if (p.$type === 'success') return p.theme.success;
-    if (p.$type === 'error') return p.theme.error;
-    return p.theme.warning;
-  }};
+  padding: 16px 20px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+
+  ${props => props.$type === 'success' && `
+    background: ${props.theme.success}20;
+    color: ${props.theme.success};
+    border: 1px solid ${props.theme.success}40;
+  `}
+  
+  ${props => props.$type === 'error' && `
+    background: ${props.theme.error}20;
+    color: ${props.theme.error};
+    border: 1px solid ${props.theme.error}40;
+  `}
+  
+  ${props => props.$type === 'info' && `
+    background: ${props.theme.accent}20;
+    color: ${props.theme.accent};
+    border: 1px solid ${props.theme.accent}40;
+  `}
+`;
+
+const Note = styled.div`
+  font-size: 12px;
+  color: ${props => props.theme.textSecondary};
+  text-align: center;
+  line-height: 1.5;
+  
+  a {
+    color: ${props => props.theme.accent};
+    text-decoration: none;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 `;
 
 const Footer = styled.div`
-  padding: 12px 18px; border-top: 1px solid ${p => p.theme.border}; 
-  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid ${props => props.theme.border};
+  text-align: center;
 `;
-const Note = styled.div` font-size: 12px; color: ${p => p.theme.textSecondary}; `;
 
 export default function CloudSyncDialog({ open, onClose, darkMode }) {
-  const [provider, setProvider] = useState('yandex'); // 'yandex' или 'google'
+  const [provider, setProvider] = useState('yandex'); // только 'yandex'
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -131,8 +274,10 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
   const api = window.electronAPI;
 
   useEffect(() => {
+    console.log('CloudSyncDialog: useEffect triggered', { open, provider });
     if (open) {
       checkConnection();
+      setMessage(null);
     }
   }, [open, provider]);
 
@@ -140,14 +285,9 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
     if (!api) return;
     setIsLoading(true);
     try {
-      if (provider === 'yandex') {
-        const result = await api.checkYandexDiskConnection?.();
-        setIsConnected(result?.connected || false);
-        setYandexConnectedUser(result?.username || '');
-      } else {
-        const result = await api.checkGoogleDriveConnection?.();
-        setIsConnected(result?.connected || false);
-      }
+      const result = await api.checkYandexDiskConnection?.();
+      setIsConnected(result?.connected || false);
+      setYandexConnectedUser(result?.username || '');
     } catch (error) {
       console.error('Connection check failed:', error);
       setIsConnected(false);
@@ -170,12 +310,12 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
         setIsConnected(true);
         setYandexConnectedUser(yandexUsername);
         setYandexPassword('');
-        showMessage('✅ Подключено к Яндекс.Диску', 'success');
+        showMessage('Подключено к Яндекс.Диску', 'success');
       } else {
-        showMessage(`❌ Ошибка: ${result?.error || 'Неверные данные'}`, 'error');
+               showMessage(`Ошибка: ${result?.error || 'Неверные данные'}`, 'error');
       }
     } catch (error) {
-      showMessage(`❌ Ошибка: ${error.message}`, 'error');
+      showMessage(`Ошибка: ${error.message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -188,44 +328,10 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
       if (result?.success) {
         setIsConnected(false);
         setYandexConnectedUser('');
-        showMessage('✅ Отключено от Яндекс.Диска', 'success');
+        showMessage('Отключено от Яндекс.Диска', 'success');
       }
     } catch (error) {
-      showMessage(`❌ Ошибка: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const connectToGoogle = async () => {
-    setIsLoading(true);
-    setMessage(null);
-    try {
-      const result = await api.connectToGoogleDrive?.();
-      if (result?.success) {
-        setIsConnected(true);
-        showMessage('✅ Подключено к Google Drive', 'success');
-        checkConnection(); // Обновляем статус
-      } else {
-        showMessage(`❌ Ошибка: ${result?.error || 'Не удалось подключиться'}`, 'error');
-      }
-    } catch (error) {
-      showMessage(`❌ Ошибка: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const disconnectFromGoogle = async () => {
-    setIsLoading(true);
-    try {
-      const result = await api.disconnectFromGoogleDrive?.();
-      if (result?.success) {
-        setIsConnected(false);
-        showMessage('✅ Отключено от Google Drive', 'success');
-      }
-    } catch (error) {
-      showMessage(`❌ Ошибка: ${error.message}`, 'error');
+      showMessage(`Ошибка: ${error.message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -235,17 +341,14 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
     setIsLoading(true);
     setMessage(null);
     try {
-      const result = provider === 'yandex' 
-        ? await api.syncToYandexDisk?.()
-        : await api.syncToCloud?.();
-        
+      const result = await api.syncToYandexDisk?.();
       if (result?.success) {
-        showMessage(result.message || '✅ Данные успешно сохранены', 'success');
+        showMessage(result.message || 'Данные успешно сохранены', 'success');
       } else {
         showMessage(`❌ Ошибка: ${result?.error}`, 'error');
       }
     } catch (error) {
-      showMessage(`❌ Ошибка: ${error.message}`, 'error');
+      showMessage(`Ошибка: ${error.message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -255,17 +358,14 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
     setIsLoading(true);
     setMessage(null);
     try {
-      const result = provider === 'yandex'
-        ? await api.syncFromYandexDisk?.()
-        : await api.syncFromCloud?.();
-        
+      const result = await api.syncFromYandexDisk?.();
       if (result?.success) {
-        showMessage(result.message || '✅ Данные успешно восстановлены', 'success');
+        showMessage(result.message || 'Данные успешно восстановлены', 'success');
       } else {
         showMessage(`❌ Ошибка: ${result?.error}`, 'error');
       }
     } catch (error) {
-      showMessage(`❌ Ошибка: ${error.message}`, 'error');
+      showMessage(`Ошибка: ${error.message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -276,50 +376,58 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
     setMessageType(type);
   };
 
+  const handleClose = (event) => {
+    console.log('CloudSyncDialog: Closing dialog', event);
+    setMessage(null);
+    onClose();
+  };
+
   return (
-    <ThemeProvider theme={darkMode ? dark : light}>
-      <Overlay $open={open} onClick={onClose}>
+    <ThemeProvider theme={darkMode ? darkTheme : lightTheme}>
+      <Overlay onClick={handleClose}>
         <Dialog onClick={e => e.stopPropagation()}>
           <Header>
             <Title>☁️ Облачная синхронизация</Title>
-            <Close onClick={onClose}><X size={18} /></Close>
+            <CloseButton onClick={handleClose}>
+              <X size={20} />
+            </CloseButton>
           </Header>
 
-          <Body>
-            <ProviderSelector>
-              <ProviderButton 
-                $active={provider === 'yandex'} 
-                onClick={() => setProvider('yandex')}
-              >
-                Яндекс.Диск
-              </ProviderButton>
-              <ProviderButton 
-                $active={provider === 'google'} 
-                onClick={() => setProvider('google')}
-              >
-                Google Drive
-              </ProviderButton>
-            </ProviderSelector>
-
-            <StatusCard>
-              <StatusIcon $connected={isConnected}>
-                {isConnected ? <Cloud size={20} /> : <CloudOff size={20} />}
-              </StatusIcon>
-              <StatusText>
-                <h4>{isConnected ? 'Подключено' : 'Не подключено'}</h4>
-                <p>
-                  {provider === 'yandex' ? 'Яндекс.Диск' : 'Google Drive'}
-                  {isConnected && yandexConnectedUser && ` (${yandexConnectedUser})`}
-                </p>
-              </StatusText>
-            </StatusCard>
+          <Content>
+            <Section>
+              <SectionTitle>
+                <Cloud size={20} />
+                Статус подключения
+              </SectionTitle>
+              <StatusCard>
+                <StatusIcon $connected={isConnected}>
+                  {isConnected ? <Cloud size={24} /> : <CloudOff size={24} />}
+                </StatusIcon>
+                <StatusText>
+                  <h4>{isConnected ? 'Подключено' : 'Не подключено'}</h4>
+                  <p>
+                    Яндекс.Диск
+                    {isConnected && yandexConnectedUser && ` (${yandexConnectedUser})`}
+                  </p>
+                </StatusText>
+              </StatusCard>
+            </Section>
 
             {message && (
-              <Message $type={messageType}>{message}</Message>
+              <Message $type={messageType}>
+                {messageType === 'success' && <CheckCircle size={18} />}
+                {messageType === 'error' && <AlertCircle size={18} />}
+                {messageType === 'info' && <Settings size={18} />}
+                {message}
+              </Message>
             )}
 
-            {provider === 'yandex' && !isConnected && (
-              <>
+            {!isConnected && (
+              <Section>
+                <SectionTitle>
+                  <Settings size={20} />
+                  Подключение к Яндекс.Диску
+                </SectionTitle>
                 <Input
                   type="email"
                   placeholder="Email (example@yandex.ru)"
@@ -335,53 +443,47 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
                   disabled={isLoading}
                 />
                 <ActionButton 
-                  $primary 
+                  className="primary"
                   onClick={connectToYandex} 
-                  disabled={isLoading}
+                  disabled={isLoading || !yandexUsername || !yandexPassword}
                 >
                   <Cloud size={18} />
                   {isLoading ? 'Подключение...' : 'Подключиться'}
                 </ActionButton>
                 <Note>
-                  💡 Используйте <a href="https://id.yandex.ru/security/app-passwords" target="_blank" style={{color: 'inherit'}}>пароль приложения</a> из настроек Яндекса
+                  💡 Используйте <a href="https://id.yandex.ru/security/app-passwords" target="_blank" rel="noopener noreferrer">пароль приложения</a> из настроек Яндекса
                 </Note>
-              </>
-            )}
-
-            {provider === 'google' && !isConnected && (
-              <>
-                <ActionButton $primary onClick={connectToGoogle} disabled={isLoading}>
-                  <Cloud size={18} />
-                  {isLoading ? 'Подключение...' : 'Подключить Google Drive'}
-                </ActionButton>
-                <Note>
-                  💡 Откроется браузер для авторизации через Google
-                </Note>
-              </>
+              </Section>
             )}
 
             {isConnected && (
-              <>
-                <ActionButton $primary onClick={syncToCloud} disabled={isLoading}>
+              <Section>
+                <SectionTitle>
+                  <Upload size={20} />
+                  Синхронизация данных
+                </SectionTitle>
+                <ActionButton className="primary" onClick={syncToCloud} disabled={isLoading}>
                   <Upload size={18} />
                   {isLoading ? 'Сохранение...' : 'Сохранить в облако'}
                 </ActionButton>
 
-                <ActionButton onClick={syncFromCloud} disabled={isLoading}>
+                <ActionButton className="secondary" onClick={syncFromCloud} disabled={isLoading}>
                   <Download size={18} />
                   {isLoading ? 'Восстановление...' : 'Восстановить из облака'}
                 </ActionButton>
 
-                <ActionButton onClick={provider === 'yandex' ? disconnectFromYandex : disconnectFromGoogle} disabled={isLoading}>
+                <ActionButton className="secondary" onClick={disconnectFromYandex} disabled={isLoading}>
                   <CloudOff size={18} />
                   Отключить
                 </ActionButton>
-              </>
+              </Section>
             )}
-          </Body>
+          </Content>
 
           <Footer>
-            <Note>Данные шифруются перед отправкой</Note>
+            <Note>
+              Данные шифруются перед отправкой в облако
+            </Note>
           </Footer>
         </Dialog>
       </Overlay>

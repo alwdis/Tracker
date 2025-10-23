@@ -70,4 +70,15 @@ for (const name of fs.readdirSync(repo)) {
 }
 
 console.log(`prepare-build: renderer js files placed next to index.html: ${moved}`);
+
+// Copy Google Drive config for production
+const configDir = path.join(outBuild, 'config');
+ensureDir(configDir);
+const builtinConfig = path.resolve(repo, 'config/google-drive-builtin.js');
+if (fs.existsSync(builtinConfig)) {
+  const prodConfig = path.join(configDir, 'google-drive.js');
+  fs.copyFileSync(builtinConfig, prodConfig);
+  console.log('Created production Google Drive config');
+}
+
 console.log('prepare-build: done (output →', outBuild, ')');

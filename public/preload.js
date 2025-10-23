@@ -4,21 +4,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readMediaData: () => ipcRenderer.invoke('read-media-data'),
   writeMediaData: (data) => ipcRenderer.invoke('write-media-data', data),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  
+  // Update status listener
+  onUpdateStatus: (callback) => {
+    ipcRenderer.on('auto-updater-event', callback);
+  },
+  removeUpdateStatusListener: (callback) => {
+    ipcRenderer.removeListener('auto-updater-event', callback);
+  },
   
   // Backup system APIs
   createManualBackup: () => ipcRenderer.invoke('create-manual-backup'),
   restoreFromBackup: (backupPath) => ipcRenderer.invoke('restore-from-backup', backupPath),
   getAvailableBackups: () => ipcRenderer.invoke('get-available-backups'),
   selectBackupFile: () => ipcRenderer.invoke('select-backup-file'),
-  
-  // Google Drive Cloud Sync APIs
-  checkGoogleDriveConnection: () => ipcRenderer.invoke('check-google-drive-connection'),
-  connectToGoogleDrive: () => ipcRenderer.invoke('connect-to-google-drive'),
-  disconnectFromGoogleDrive: () => ipcRenderer.invoke('disconnect-from-google-drive'),
-  syncToCloud: () => ipcRenderer.invoke('sync-to-cloud'),
-  syncFromCloud: () => ipcRenderer.invoke('sync-from-cloud'),
-  getCloudSyncSettings: () => ipcRenderer.invoke('get-cloud-sync-settings'),
-  setCloudSyncSettings: (settings) => ipcRenderer.invoke('set-cloud-sync-settings', settings),
   
   // Yandex.Disk WebDAV APIs
   connectToYandexDisk: (username, password) => ipcRenderer.invoke('connect-to-yandex-disk', username, password),
