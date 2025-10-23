@@ -18,7 +18,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   syncToCloud: () => ipcRenderer.invoke('sync-to-cloud'),
   syncFromCloud: () => ipcRenderer.invoke('sync-from-cloud'),
   getCloudSyncSettings: () => ipcRenderer.invoke('get-cloud-sync-settings'),
-  setCloudSyncSettings: (settings) => ipcRenderer.invoke('set-cloud-sync-settings', settings)
+  setCloudSyncSettings: (settings) => ipcRenderer.invoke('set-cloud-sync-settings', settings),
+  
+  // Yandex.Disk WebDAV APIs
+  connectToYandexDisk: (username, password) => ipcRenderer.invoke('connect-to-yandex-disk', username, password),
+  disconnectFromYandexDisk: () => ipcRenderer.invoke('disconnect-from-yandex-disk'),
+  checkYandexDiskConnection: () => ipcRenderer.invoke('check-yandex-disk-connection'),
+  syncToYandexDisk: () => ipcRenderer.invoke('sync-to-yandex-disk'),
+  syncFromYandexDisk: () => ipcRenderer.invoke('sync-from-yandex-disk')
 });
 
 // Обработчик для диагностической информации

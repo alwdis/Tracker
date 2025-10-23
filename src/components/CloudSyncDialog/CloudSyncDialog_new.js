@@ -197,40 +197,6 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
     }
   };
 
-  const connectToGoogle = async () => {
-    setIsLoading(true);
-    setMessage(null);
-    try {
-      const result = await api.connectToGoogleDrive?.();
-      if (result?.success) {
-        setIsConnected(true);
-        showMessage('✅ Подключено к Google Drive', 'success');
-        checkConnection(); // Обновляем статус
-      } else {
-        showMessage(`❌ Ошибка: ${result?.error || 'Не удалось подключиться'}`, 'error');
-      }
-    } catch (error) {
-      showMessage(`❌ Ошибка: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const disconnectFromGoogle = async () => {
-    setIsLoading(true);
-    try {
-      const result = await api.disconnectFromGoogleDrive?.();
-      if (result?.success) {
-        setIsConnected(false);
-        showMessage('✅ Отключено от Google Drive', 'success');
-      }
-    } catch (error) {
-      showMessage(`❌ Ошибка: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const syncToCloud = async () => {
     setIsLoading(true);
     setMessage(null);
@@ -350,13 +316,9 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
 
             {provider === 'google' && !isConnected && (
               <>
-                <ActionButton $primary onClick={connectToGoogle} disabled={isLoading}>
-                  <Cloud size={18} />
-                  {isLoading ? 'Подключение...' : 'Подключить Google Drive'}
-                </ActionButton>
-                <Note>
-                  💡 Откроется браузер для авторизации через Google
-                </Note>
+                <Message $type="warning">
+                  ⚠️ Google Drive требует настройки API. См. GOOGLE_DRIVE_SETUP.md
+                </Message>
               </>
             )}
 
@@ -372,7 +334,7 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
                   {isLoading ? 'Восстановление...' : 'Восстановить из облака'}
                 </ActionButton>
 
-                <ActionButton onClick={provider === 'yandex' ? disconnectFromYandex : disconnectFromGoogle} disabled={isLoading}>
+                <ActionButton onClick={provider === 'yandex' ? disconnectFromYandex : null} disabled={isLoading}>
                   <CloudOff size={18} />
                   Отключить
                 </ActionButton>

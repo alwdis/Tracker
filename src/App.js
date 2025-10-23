@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled, { createGlobalStyle, ThemeProvider } from 'styled-components';
-import { Plus, Film, Tv, Play, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Download, Upload, Tag, Filter, Cloud, User } from 'lucide-react';
+import { Plus, Film, Tv, Play, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Download, Upload, Tag, Filter, RefreshCw, Cloud } from 'lucide-react';
 import { APP_VERSION } from './version';
 
 // Импортируем компоненты
@@ -9,8 +9,7 @@ import MediaCard from './components/MediaCard/MediaCard';
 import RatingDialog from './components/RatingDialog/RatingDialog';
 import Statistics from './components/Statistics/Statistics';
 import ImportExportDialog from './components/ImportExportDialog/ImportExportDialog';
-import ProfileMenu from './components/ProfileMenu/ProfileMenu';
-import UpdateDialog from './components/UpdateDialog/UpdateDialog';
+import CloudSyncDialog from './components/CloudSyncDialog/CloudSyncDialog';
 
 /* ---------- ТЕМА ---------- */
 const lightTheme = {
@@ -223,6 +222,30 @@ const Footer = styled.footer`
   border-top:1px solid ${p=>p.theme.border}; display:flex; flex-direction:column; gap:4px; background:${p=>p.theme.surface};
 `;
 const Version = styled.span`font-size:10px; opacity:.5; color:${p=>p.theme.accent};`;
+const UpdateButton = styled.button`
+  background: none;
+  border: none;
+  color: ${p => p.theme.textSecondary};
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+  
+  &:hover {
+    background: ${p => p.theme.surfaceSecondary};
+    opacity: 1;
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
 
 /* ---------- ДАННЫЕ/ЛОГИКА ---------- */
 
@@ -430,13 +453,11 @@ function App() {
   const [ratingDialog, setRatingDialog] = useState({ show: false, item: null });
   const [importExportDialog, setImportExportDialog] = useState({ show: false, mode: null });
   const [cloudSyncDialogOpen, setCloudSyncDialogOpen] = useState(false);
-  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
-  const [updateInfo, setUpdateInfo] = useState(null);
-  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
   const [isDarkTheme, setIsDarkTheme] = useState(true);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
 
   const { isOnline, isStandalone, showInstallPrompt, installPWA, dismissInstallPrompt } = usePWA();
 
@@ -444,25 +465,6 @@ function App() {
     loadMediaData();
     const savedTheme = localStorage.getItem('tracker-theme');
     if (savedTheme) setIsDarkTheme(savedTheme === 'dark');
-    
-    // Обработчик событий автообновления
-    if (window.electronAPI) {
-      const handleAutoUpdaterEvent = (event, data) => {
-        console.log('Auto-updater event:', data);
-        setUpdateInfo(data);
-        
-        if (data.type === 'update-available' || data.type === 'update-downloaded') {
-          setUpdateDialogOpen(true);
-        }
-      };
-      
-      // Слушаем события автообновления
-      window.addEventListener('auto-updater-event', handleAutoUpdaterEvent);
-      
-      return () => {
-        window.removeEventListener('auto-updater-event', handleAutoUpdaterEvent);
-      };
-    }
   }, []);
 
   const toggleTheme = () => {
@@ -534,29 +536,18 @@ function App() {
     if (isCheckingUpdates) return;
     
     setIsCheckingUpdates(true);
-    setUpdateDialogOpen(true);
-    setUpdateInfo({ type: 'checking' });
-    
     try {
       if (window.electronAPI?.checkForUpdates) {
         await window.electronAPI.checkForUpdates();
       } else {
         console.log('Electron API not available');
-        setUpdateInfo({ type: 'error', error: 'Electron API не доступен' });
       }
     } catch (error) {
       console.error('Error checking for updates:', error);
-      setUpdateInfo({ type: 'error', error: error.message });
     } finally {
-      setTimeout(() => setIsCheckingUpdates(false), 2000);
+      setTimeout(() => setIsCheckingUpdates(false), 2000); // Сброс через 2 секунды
     }
   };
-
-  const handleInstallUpdate = () => {
-    // Здесь будет логика установки обновления
-    console.log('Installing update...');
-  };
-
   const handleImportConfirm = (importedData, merge = false) => {
     let newData;
     if (merge) {
@@ -750,15 +741,17 @@ function App() {
           )}
 
           <HeaderControls>
-            <ProfileMenu
-              onExport={handleExport}
-              onImport={handleImport}
-              onCloudSync={() => setCloudSyncDialogOpen(true)}
-              onThemeToggle={toggleTheme}
-              onCheckUpdates={checkForUpdates}
-              isDarkTheme={isDarkTheme}
-              isCheckingUpdates={isCheckingUpdates}
-            />
+            <IconButton className="success" onClick={handleExport} title="Экспорт данных"><Download size={20}/></IconButton>
+            <IconButton className="warning" onClick={handleImport} title="Импорт данных"><Upload size={20}/></IconButton>
+
+            {typeof window !== 'undefined' && window.electronAPI && (
+              <IconButton className="info" onClick={()=>setCloudSyncDialogOpen(true)} title="Облачная синхронизация"><Cloud size={20}/></IconButton>
+            )}
+
+
+            <ThemeToggle onClick={toggleTheme} title={isDarkTheme ? 'Светлая тема' : 'Тёмная тема'}>
+              {isDarkTheme ? <Sun size={20}/> : <Moon size={20}/>}
+            </ThemeToggle>
           </HeaderControls>
         </Header>
 
@@ -819,18 +812,20 @@ function App() {
           <CloudSyncDialog open={cloudSyncDialogOpen} onClose={()=>setCloudSyncDialogOpen(false)} darkMode={isDarkTheme} />
         )}
 
-        <UpdateDialog 
-          open={updateDialogOpen} 
-          onClose={()=>setUpdateDialogOpen(false)} 
-          darkMode={isDarkTheme}
-          updateInfo={updateInfo}
-          onInstallUpdate={handleInstallUpdate}
-        />
-
         {renderInstallPrompt()}
 
         <Footer>
           <Version>Tracker v{APP_VERSION}</Version>
+          <UpdateButton 
+            onClick={checkForUpdates} 
+            disabled={isCheckingUpdates}
+            title="Проверить обновления"
+          >
+            <RefreshCw size={12} style={{ 
+              animation: isCheckingUpdates ? 'spin 1s linear infinite' : 'none' 
+            }} />
+            {isCheckingUpdates ? 'Проверка...' : 'Проверить обновления'}
+          </UpdateButton>
         </Footer>
       </AppContainer>
     </ThemeProvider>

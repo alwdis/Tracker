@@ -36,5 +36,11 @@ Thumbs.db
 *.local
 .env
 .env.*
+
+# Google Drive API credentials (security)
+client_secret_*.json
+credentials.json
+google-tokens.json
+
 # Keep CI and workflows
 !.github/
