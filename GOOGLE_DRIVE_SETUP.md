@@ -448,12 +448,30 @@ https://console.cloud.google.com/apis/credentials/consent
 - [ ] Настроен OAuth consent screen
 - [ ] Добавлен scope `drive.file`
 - [ ] Добавлены test users
-- [ ] Созданы OAuth 2.0 Credentials (Desktop app)
+- [ ] Созданы OAuth 2.0 Credentials (Web application)
 - [ ] Скопированы Client ID и Client Secret
-- [ ] Вставлены ключи в `public/electron.js`
+- [ ] Создан файл `.env` с ключами
 - [ ] Пересобрано приложение (`npm run build`)
 - [ ] Протестирована авторизация
 - [ ] Протестирована синхронизация
+
+## 7. Настройка переменных окружения
+
+После получения ключей, создайте файл `.env` в корне проекта:
+
+```bash
+# Скопируйте env.example в .env
+cp env.example .env
+```
+
+Затем отредактируйте `.env` файл и вставьте ваши ключи:
+
+```env
+GOOGLE_CLIENT_ID=ваш_client_id_здесь
+GOOGLE_CLIENT_SECRET=ваш_client_secret_здесь
+```
+
+**⚠️ Важно**: Файл `.env` автоматически исключен из git и не будет загружен в репозиторий.
 
 ---
 

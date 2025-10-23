@@ -41,6 +41,9 @@ Thumbs.db
 client_secret_*.json
 credentials.json
 google-tokens.json
+.env
+.env.local
+.env.production
 
 # Keep CI and workflows
 !.github/
