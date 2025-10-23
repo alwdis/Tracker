@@ -7,6 +7,18 @@ const { google } = require('googleapis');
 const { OAuth2Client } = require('google-auth-library');
 // webdav is an ES Module, so we'll load it dynamically
 
+// Load Google Drive configuration
+let googleDriveConfig;
+try {
+  googleDriveConfig = require('../config/google-drive.js');
+} catch (error) {
+  console.warn('Google Drive config not found, using defaults');
+  googleDriveConfig = {
+    GOOGLE_CLIENT_ID: 'YOUR_GOOGLE_CLIENT_ID',
+    GOOGLE_CLIENT_SECRET: 'YOUR_GOOGLE_CLIENT_SECRET'
+  };
+}
+
 // Yandex.Disk WebDAV configuration
 let yandexClient = null;
 const YANDEX_WEBDAV_URL = 'https://webdav.yandex.ru';
@@ -98,10 +110,15 @@ async function listYandexDiskFiles(remotePath = '/Tracker') {
 
 // Google Drive API configuration
 const GOOGLE_DRIVE_CONFIG = {
-  clientId: 'YOUR_GOOGLE_CLIENT_ID',
-  clientSecret: 'YOUR_GOOGLE_CLIENT_SECRET',
-  redirectUri: 'http://localhost:3000',
-  scopes: ['https://www.googleapis.com/auth/drive.file']
+  clientId: googleDriveConfig.GOOGLE_CLIENT_ID,
+  clientSecret: googleDriveConfig.GOOGLE_CLIENT_SECRET,
+  redirectUri: 'http://localhost:8888/oauth2callback',
+  scopes: [
+    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/drive.appdata',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'https://www.googleapis.com/auth/userinfo.email'
+  ]
 };
 
 let oauth2Client = null;
