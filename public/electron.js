@@ -5,14 +5,26 @@ const fsSync = require('fs');
 const fs = require('fs').promises;
 const { google } = require('googleapis');
 const { OAuth2Client } = require('google-auth-library');
-const { createClient } = require('webdav');
+// webdav is an ES Module, so we'll load it dynamically
 
 // Yandex.Disk WebDAV configuration
 let yandexClient = null;
 const YANDEX_WEBDAV_URL = 'https://webdav.yandex.ru';
 
+// Dynamic import for webdav ES Module
+async function loadWebDAV() {
+  try {
+    const { createClient } = await import('webdav');
+    return createClient;
+  } catch (error) {
+    console.error('Failed to load webdav:', error);
+    throw error;
+  }
+}
+
 async function initializeYandexDisk(username, password) {
   try {
+    const createClient = await loadWebDAV();
     yandexClient = createClient(YANDEX_WEBDAV_URL, {
       username: username,
       password: password
