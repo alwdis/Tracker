@@ -3,6 +3,7 @@ name: Release (Windows - Smart Auto Release)
 on:
   push:
     branches: [ master ]
+  push:
     tags:
       - 'v*'
   pull_request:
