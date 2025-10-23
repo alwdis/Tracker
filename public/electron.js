@@ -508,10 +508,10 @@ async function createManualBackup() {
     console.log('createManualBackup: Starting...');
     await ensureUserDataDir();
     
-    // Создаем папку Backup внутри папки приложения
-    const appDir = path.dirname(process.execPath);
-    const backupDir = path.join(appDir, 'Backup');
-    console.log('createManualBackup: App dir:', appDir);
+    // Создаем папку Backup внутри userData директории
+    const userDataDir = userDataDir();
+    const backupDir = path.join(userDataDir, 'Backup');
+    console.log('createManualBackup: UserData dir:', userDataDir);
     console.log('createManualBackup: Backup dir:', backupDir);
     
     if (!fsSync.existsSync(backupDir)) {
@@ -556,10 +556,10 @@ async function getAvailableBackups() {
   try {
     console.log('getAvailableBackups: Starting search...');
     const candidates = [];
-    // Ищем в папке Backup внутри папки приложения
-    const appDir = path.dirname(process.execPath);
-    const backupDir = path.join(appDir, 'Backup');
-    console.log('getAvailableBackups: App dir:', appDir);
+    // Ищем в папке Backup внутри userData директории
+    const userDataDir = userDataDir();
+    const backupDir = path.join(userDataDir, 'Backup');
+    console.log('getAvailableBackups: UserData dir:', userDataDir);
     console.log('getAvailableBackups: Backup dir:', backupDir);
     
     // Также проверяем старые места для совместимости
@@ -602,9 +602,9 @@ ipcMain.handle('create-manual-backup', async () => createManualBackup());
 ipcMain.handle('restore-from-backup', async (event, backupPath) => restoreFromBackup(backupPath));
 ipcMain.handle('get-available-backups', async () => getAvailableBackups());
 ipcMain.handle('select-backup-file', async () => {
-  // По умолчанию открываем папку приложения
-  const appDir = path.dirname(process.execPath);
-  const backupDir = path.join(appDir, 'Backup');
+  // По умолчанию открываем папку userData
+  const userDataDir = userDataDir();
+  const backupDir = path.join(userDataDir, 'Backup');
   
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Выберите файл бэкапа',

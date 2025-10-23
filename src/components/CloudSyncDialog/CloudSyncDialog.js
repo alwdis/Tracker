@@ -345,7 +345,7 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
       if (result?.success) {
         showMessage(result.message || 'Данные успешно сохранены', 'success');
       } else {
-        showMessage(`❌ Ошибка: ${result?.error}`, 'error');
+        showMessage(`Ошибка: ${result?.error}`, 'error');
       }
     } catch (error) {
       showMessage(`Ошибка: ${error.message}`, 'error');
@@ -362,7 +362,7 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
       if (result?.success) {
         showMessage(result.message || 'Данные успешно восстановлены', 'success');
       } else {
-        showMessage(`❌ Ошибка: ${result?.error}`, 'error');
+        showMessage(`Ошибка: ${result?.error}`, 'error');
       }
     } catch (error) {
       showMessage(`Ошибка: ${error.message}`, 'error');
