@@ -41,6 +41,7 @@ Thumbs.db
 client_secret_*.json
 credentials.json
 google-tokens.json
+config/google-drive.js
 .env
 .env.local
 .env.production
