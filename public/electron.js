@@ -453,7 +453,15 @@ ipcMain.handle('check-for-updates', async () => {
 // ===== Data & Backups =====
 const os = require('os');
 const desktopDir = path.join(os.homedir(), 'Desktop');
-const userDataDir = () => app.getPath('userData');
+const userDataDir = () => {
+  try {
+    return app.getPath('userData');
+  } catch (error) {
+    // Fallback если app еще не готов
+    const os = require('os');
+    return path.join(os.homedir(), 'AppData', 'Roaming', 'tracker');
+  }
+};
 const dataFile = () => path.join(userDataDir(), 'media-data.json');
 
 async function ensureUserDataDir() {
@@ -563,7 +571,7 @@ async function getAvailableBackups() {
     console.log('getAvailableBackups: Backup dir:', backupDir);
     
     // Также проверяем старые места для совместимости
-    const searchDirs = [backupDir, path.join(userDataDir(), 'Backup'), app.getPath('desktop'), userDataDir()];
+    const searchDirs = [backupDir, path.join(userDataPath, 'Backup'), app.getPath('desktop'), userDataPath];
     console.log('getAvailableBackups: Search directories:', searchDirs);
     
     for (const dir of searchDirs) {
