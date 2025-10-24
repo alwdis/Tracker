@@ -30,7 +30,7 @@ function createTagAndPush(version) {
   execSync('git add package.json package-lock.json src/version.js', { stdio: 'inherit' });
   
   // Commit version changes
-  execSync(`git commit -m "chore: bump version to ${version}"`, { stdio: 'inherit' });
+  execSync(`git commit -m "Realese ${version}"`, { stdio: 'inherit' });
   
   console.log(`Creating tag ${tagName}...`);
   
