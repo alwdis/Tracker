@@ -81,7 +81,7 @@
         }
       ],
       "icon": "assets/icons/icon.ico",
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "Media-Tracker-Setup-${version}.${ext}"
     },
     "mac": {
       "target": "dmg",
