@@ -1,6 +1,6 @@
 {
   "name": "tracker",
-  "version": "5.0.14",
+  "version": "5.1.0",
   "description": "Personal media tracker (Films/Series/Anime).",
   "author": "alwdis",
   "license": "MIT",
@@ -28,6 +28,7 @@
   "dependencies": {
     "electron-log": "^5.4.3",
     "electron-updater": "^6.6.2",
+    "framer-motion": "^12.23.24",
     "google-auth-library": "^10.4.1",
     "googleapis": "^164.1.0",
     "lucide-react": "^0.263.1",
