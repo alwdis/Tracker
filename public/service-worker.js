@@ -211,4 +211,37 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  
+  // Кэшируем данные медиа для офлайн работы
+  if (event.data && event.data.type === 'CACHE_MEDIA_DATA') {
+    const cache = caches.open(DYNAMIC_CACHE);
+    const response = new Response(JSON.stringify(event.data.data), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    cache.then(c => c.put('/api/media-data', response));
+  }
+  
+  // Периодическая очистка кэша
+  if (event.data && event.data.type === 'CLEAN_CACHE') {
+    cleanOldCache();
+  }
 });
+
+// Очистка старого кэша
+async function cleanOldCache() {
+  const cache = await caches.open(DYNAMIC_CACHE);
+  const requests = await cache.keys();
+  
+  // Удаляем кэш старше 7 дней
+  const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  
+  for (const request of requests) {
+    const response = await cache.match(request);
+    if (response) {
+      const dateHeader = response.headers.get('date');
+      if (dateHeader && new Date(dateHeader).getTime() < weekAgo) {
+        await cache.delete(request);
+      }
+    }
+  }
+}

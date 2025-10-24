@@ -1,23 +1,67 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import styled from 'styled-components';
+import { motion } from 'framer-motion';
 import { Trash2, Edit3, Plus, Minus, Star, ExternalLink, Tag as TagIcon, MessageCircle, AlertTriangle, X, Heart } from 'lucide-react';
 
 /** ============== Layout constants ============== */
-const POSTER_W = 120; // шире постер для визуального баланса
+// Адаптивные размеры для разных экранов
+const CARD_SIZES = {
+  desktop: { 
+    posterWidth: 120, 
+    minHeight: 220, 
+    padding: 16, 
+    gap: 16,
+    borderRadius: 16,
+    fontSize: { title: 16, meta: 12, rating: 12 }
+  },
+  tablet: { 
+    posterWidth: 100, 
+    minHeight: 200, 
+    padding: 14, 
+    gap: 14,
+    borderRadius: 16,
+    fontSize: { title: 15, meta: 12, rating: 12 }
+  },
+  mobile: { 
+    posterWidth: 80, 
+    minHeight: 180, 
+    padding: 12, 
+    gap: 12,
+    borderRadius: 14,
+    fontSize: { title: 14, meta: 11, rating: 11 }
+  },
+  small: { 
+    posterWidth: 60, 
+    minHeight: 160, 
+    padding: 10, 
+    gap: 10,
+    borderRadius: 12,
+    fontSize: { title: 13, meta: 10, rating: 10 }
+  }
+};
+
+// Функция для получения размеров в зависимости от ширины экрана
+const getCardSizes = (screenWidth) => {
+  if (screenWidth >= 1200) return CARD_SIZES.desktop;
+  if (screenWidth >= 768) return CARD_SIZES.tablet;
+  if (screenWidth >= 480) return CARD_SIZES.mobile;
+  return CARD_SIZES.small;
+};
 
 /** ============== Card shell ============== */
-const CardContainer = styled.div`
+const CardContainer = styled(motion.div)`
   width: 100%;
   perspective: 1000px;
 `;
 
-const Card = styled.div`
+const Card = styled(motion.div)`
   width: 100%;
-  height: 280px;
+  min-height: ${p => p.$sizes?.minHeight || 200}px;
   position: relative;
   transform-style: preserve-3d;
   transition: transform 0.6s ease;
   transform: ${p => p.$flipped ? 'rotateY(180deg)' : 'rotateY(0deg)'};
+  will-change: transform;
 `;
 
 const CardFace = styled.div`
@@ -25,11 +69,11 @@ const CardFace = styled.div`
   top: 0;
   left: 0;
   width: 100%;
-  height: 280px;
+  min-height: ${p => p.$sizes?.minHeight || 200}px;
   backface-visibility: hidden;
   background: ${p => p.theme.surface};
   border: 1px solid ${p => p.theme.border};
-  border-radius: 16px;
+  border-radius: ${p => p.$sizes?.borderRadius || 16}px;
   box-shadow: 0 6px 16px ${p => p.theme.shadow};
   overflow: hidden;
   transition: border-color .15s ease, box-shadow .15s ease;
@@ -50,26 +94,32 @@ const CardBack = styled(CardFace)`
 
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: ${POSTER_W}px 1fr;
-  gap: 14px;
-  padding: 14px;
+  grid-template-columns: ${p => p.$sizes?.posterWidth || 100}px 1fr;
+  gap: ${p => p.$sizes?.gap || 14}px;
+  padding: ${p => p.$sizes?.padding || 14}px;
   > * { min-width: 0; }
 
+  @media (max-width: 1200px) {
+    grid-template-columns: ${p => p.$sizes?.posterWidth >= 120 ? 100 : p.$sizes?.posterWidth || 100}px 1fr;
+    gap: ${p => p.$sizes?.gap >= 16 ? 14 : p.$sizes?.gap || 14}px;
+    padding: ${p => p.$sizes?.padding >= 16 ? 14 : p.$sizes?.padding || 14}px;
+  }
+
   @media (max-width: 768px) {
-    grid-template-columns: 100px 1fr;
-    gap: 12px;
-    padding: 12px;
+    grid-template-columns: ${p => p.$sizes?.posterWidth >= 100 ? 80 : p.$sizes?.posterWidth || 80}px 1fr;
+    gap: ${p => p.$sizes?.gap >= 14 ? 12 : p.$sizes?.gap || 12}px;
+    padding: ${p => p.$sizes?.padding >= 14 ? 12 : p.$sizes?.padding || 12}px;
   }
 
   @media (max-width: 560px) {
     grid-template-columns: 1fr;
-    gap: 10px;
-    padding: 10px;
+    gap: ${p => p.$sizes?.gap >= 12 ? 10 : p.$sizes?.gap || 10}px;
+    padding: ${p => p.$sizes?.padding >= 12 ? 10 : p.$sizes?.padding || 10}px;
   }
 
-  @media (max-width: 400px) {
-    padding: 8px;
-    gap: 8px;
+  @media (max-width: 480px) {
+    gap: ${p => p.$sizes?.gap >= 10 ? 8 : p.$sizes?.gap || 8}px;
+    padding: ${p => p.$sizes?.padding >= 10 ? 8 : p.$sizes?.padding || 8}px;
   }
 `;
 
@@ -98,10 +148,10 @@ const Right = styled.div`
   flex-direction: column;
   height: 100%;
   min-width: 0;
-  gap: 8px;
+  gap: 6px;
   
   @media (max-width: 560px) {
-    gap: 6px;
+    gap: 5px;
   }
 
   @media (max-width: 400px) {
@@ -113,7 +163,7 @@ const MainContent = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 `;
 
 const Header = styled.div`
@@ -127,7 +177,7 @@ const Header = styled.div`
 const Title = styled.h3`
   margin: 0;
   color: ${p => p.theme.text};
-  font-size: 18px;
+  font-size: ${p => p.$sizes?.fontSize?.title || 16}px;
   font-weight: 800;
   cursor: ${p => (p.$hasUrl ? 'pointer' : 'default')};
   display: inline-flex; align-items: center; gap: 6px;
@@ -143,12 +193,16 @@ const Title = styled.h3`
 
   &:hover { color: ${p => (p.$hasUrl ? p.theme.accent : p.theme.text)}; }
 
-  @media (max-width: 768px) {
-    font-size: 16px;
+  @media (max-width: 1200px) {
+    font-size: ${p => p.$sizes?.fontSize?.title >= 16 ? 15 : p.$sizes?.fontSize?.title || 15}px;
   }
 
-  @media (max-width: 400px) {
-    font-size: 14px;
+  @media (max-width: 768px) {
+    font-size: ${p => p.$sizes?.fontSize?.title >= 15 ? 14 : p.$sizes?.fontSize?.title || 14}px;
+  }
+
+  @media (max-width: 480px) {
+    font-size: ${p => p.$sizes?.fontSize?.title >= 14 ? 13 : p.$sizes?.fontSize?.title || 13}px;
     gap: 4px;
   }
 `;
@@ -176,7 +230,7 @@ const MetaRow = styled.div`
 const Meta = styled.div`
   display: flex; align-items: center; gap: 8px;
   color: ${p => p.theme.textSecondary};
-  font-size: 12px;
+  font-size: ${p => p.$sizes?.fontSize?.meta || 12}px;
   flex-wrap: wrap;
   
   span + span::before {
@@ -186,8 +240,16 @@ const Meta = styled.div`
     opacity: .65;
   }
 
-  @media (max-width: 400px) {
-    font-size: 11px;
+  @media (max-width: 1200px) {
+    font-size: ${p => p.$sizes?.fontSize?.meta >= 12 ? 12 : p.$sizes?.fontSize?.meta || 12}px;
+  }
+
+  @media (max-width: 768px) {
+    font-size: ${p => p.$sizes?.fontSize?.meta >= 12 ? 11 : p.$sizes?.fontSize?.meta || 11}px;
+  }
+
+  @media (max-width: 480px) {
+    font-size: ${p => p.$sizes?.fontSize?.meta >= 11 ? 10 : p.$sizes?.fontSize?.meta || 10}px;
     gap: 6px;
   }
 `;
@@ -226,21 +288,31 @@ const Stars = styled.div`
     gap: 1px;
   }
 `;
-const StarBtn = styled.button`
+const StarBtn = styled(motion.button)`
   background: none; border: none; padding: 0 1px; cursor: pointer;
   color: ${p => (p.$active ? '#f59e0b' : p.theme.textSecondary)};
-  &:hover { color: #f59e0b; transform: scale(1.05); }
-  transition: transform .1s ease;
+  &:hover { color: #f59e0b; }
+  transition: color .2s ease;
   
   @media (max-width: 400px) {
     padding: 0;
   }
 `;
 const RatingText = styled.span`
-  font-size: 12px; color: ${p => p.theme.textSecondary}; font-weight: 700;
+  font-size: ${p => p.$sizes?.fontSize?.rating || 12}px; 
+  color: ${p => p.theme.textSecondary}; 
+  font-weight: 700;
   
-  @media (max-width: 400px) {
-    font-size: 11px;
+  @media (max-width: 1200px) {
+    font-size: ${p => p.$sizes?.fontSize?.rating >= 12 ? 12 : p.$sizes?.fontSize?.rating || 12}px;
+  }
+
+  @media (max-width: 768px) {
+    font-size: ${p => p.$sizes?.fontSize?.rating >= 12 ? 11 : p.$sizes?.fontSize?.rating || 11}px;
+  }
+
+  @media (max-width: 480px) {
+    font-size: ${p => p.$sizes?.fontSize?.rating >= 11 ? 10 : p.$sizes?.fontSize?.rating || 10}px;
   }
 `;
 
@@ -268,25 +340,59 @@ const Bar = styled.div`
   height: 6px; border-radius: 999px;
   background: rgba(148,163,184,.25);
   overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
 `;
 const Fill = styled.div`
   position: absolute; left: 0; top: 0; bottom: 0;
   width: ${p => p.$w || 0}%;
-  background: ${p => p.$color || '#22c55e'};
+  background: ${p => {
+    if (p.$w >= 100) return 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+    if (p.$w >= 75) return 'linear-gradient(135deg, #a3e635 0%, #84cc16 100%)';
+    if (p.$w >= 40) return 'linear-gradient(135deg, #facc15 0%, #eab308 100%)';
+    return 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+  }};
   transition: width .2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, 
+      transparent 0%, 
+      rgba(255,255,255,0.3) 50%, 
+      transparent 100%);
+    animation: shimmer 2s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
 `;
 
 const Pct = styled.span`
   width: 46px; text-align: right; font-size: 12px; color: ${p => p.theme.textSecondary}; font-weight: 800;
 `;
 
-const Round = styled.button`
-  width: 28px; height: 28px; display: grid; place-items: center;
+const Round = styled(motion.button)`
+  width: 24px; height: 24px; display: grid; place-items: center;
   border-radius: 999px; border: 1px solid ${p => p.theme.border};
-  background: ${p => p.theme.surfaceSecondary};
+  background: linear-gradient(135deg, ${p => p.theme.surfaceSecondary} 0%, ${p => p.theme.surface} 100%);
   color: ${p => p.theme.text};
   cursor: pointer;
-  &:hover { background: ${p => p.theme.surface}; }
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  
+  &:hover { 
+    background: linear-gradient(135deg, ${p => p.theme.surface} 0%, ${p => p.theme.accent} 100%);
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  }
 `;
 
 /** ============== Bottom actions / tags ============== */
@@ -332,22 +438,40 @@ const IconActions = styled.div`
   }
 `;
 
-const GhostBtn = styled.button`
+const GhostBtn = styled(motion.button)`
   border: 1px solid ${p => p.theme.border};
-  background: ${p => p.theme.background};
+  background: linear-gradient(135deg, ${p => p.theme.background} 0%, ${p => p.theme.surfaceSecondary} 100%);
   color: ${p => p.theme.text};
-  padding: 8px; border-radius: 8px;
+  padding: 6px; border-radius: 6px;
   cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
-  &.danger { color: #ef4444; border-color: #ef4444; }
-  &:hover { 
-    background: ${p => p.theme.surface}; 
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  
+  &.danger { 
+    color: #ef4444; 
+    border-color: #ef4444; 
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
   }
-  font-size: 12px; white-space: nowrap;
-  width: 32px; height: 32px;
+  
+  &:hover { 
+    background: linear-gradient(135deg, ${p => p.theme.surface} 0%, ${p => p.theme.accent} 100%);
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  }
+  
+  &.danger:hover {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+  }
+  
+  font-size: 11px; white-space: nowrap;
+  width: 28px; height: 28px;
   
   @media (max-width: 400px) {
-    width: 28px; height: 28px;
-    padding: 6px;
+    width: 24px; height: 24px;
+    padding: 4px;
   }
 `;
 
@@ -358,26 +482,26 @@ const WarningContent = styled.div`
   align-items: center;
   justify-content: space-between;
   height: 100%;
-  padding: 24px;
+  padding: 20px;
   text-align: center;
 `;
 
 const WarningIcon = styled.div`
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   animation: pulse 2s infinite;
 `;
 
 const WarningText = styled.p`
-  font-size: 16px;
+  font-size: 14px;
   color: ${p => p.theme.textSecondary};
-  margin: 0 0 32px 0;
+  margin: 0 0 24px 0;
   line-height: 1.5;
 `;
 
@@ -388,40 +512,73 @@ const ConfirmationButtons = styled.div`
   width: 100%;
 `;
 
-const ConfirmBtn = styled.button`
+const ConfirmBtn = styled(motion.button)`
   flex: 1;
-  max-width: 120px;
-  padding: 12px 20px;
-  border-radius: 12px;
-  font-size: 14px;
+  max-width: 100px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+      rgba(255,255,255,0.1) 0%, 
+      rgba(255,255,255,0.05) 50%, 
+      rgba(255,255,255,0.1) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 0;
+  }
+
+  & > * {
+    position: relative;
+    z-index: 1;
+  }
 
   &.danger {
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     color: white;
     border: none;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 
     &:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
+      
+      &::before {
+        opacity: 1;
+      }
     }
   }
 
   &.secondary {
-    background: ${p => p.theme.surface};
+    background: linear-gradient(135deg, ${p => p.theme.surface} 0%, ${p => p.theme.surfaceSecondary} 100%);
     color: ${p => p.theme.text};
     border: 1px solid ${p => p.theme.border};
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 
     &:hover {
-      background: ${p => p.theme.background};
+      background: linear-gradient(135deg, ${p => p.theme.background} 0%, ${p => p.theme.surface} 100%);
       transform: translateY(-1px);
       box-shadow: 0 6px 16px ${p => p.theme.shadow};
+      
+      &::before {
+        opacity: 1;
+      }
     }
   }
 `;
@@ -436,47 +593,107 @@ const getStatusLabel = (status, type) => {
 const typeLabel   = { anime: 'Аниме', movie: 'Фильм',  series: 'Сериал', manga: 'Манга' };
 const statusColor = (s) => ({ watching:'#22c55e', planned:'#3b82f6', dropped:'#ef4444', completed:'#9ca3af' }[s] || '#9ca3af');
 
+/** ============== LazyImage Component ============== */
+const LazyImage = React.memo(({ src, alt, ...props }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isInView, setIsInView] = useState(false);
+  const imgRef = useRef();
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (imgRef.current) observer.observe(imgRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={imgRef} style={{ width: '100%', height: '100%' }}>
+      {isInView && (
+        <img 
+          src={src} 
+          alt={alt}
+          onLoad={() => setIsLoaded(true)}
+          style={{ 
+            opacity: isLoaded ? 1 : 0, 
+            transition: 'opacity 0.3s ease',
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block'
+          }}
+          {...props}
+        />
+      )}
+    </div>
+  );
+});
+
+LazyImage.displayName = 'LazyImage';
+
 /** ============== Component ============== */
-export default function MediaCard({ item, onUpdate, onDelete, onEdit, isDarkTheme }) {
+const MediaCard = React.memo(({ item, onUpdate, onDelete, onEdit, currentTheme }) => {
   const [hoverRating, setHoverRating] = useState(0);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth);
 
-  const openExternal = () => {
+  // Отслеживаем изменение размера экрана
+  React.useEffect(() => {
+    const handleResize = () => setScreenWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Получаем адаптивные размеры
+  const cardSizes = getCardSizes(screenWidth);
+
+  // Оптимизируем функции с помощью useCallback
+  const openExternal = useCallback(() => {
     if (!item?.url) return;
     let url = item.url.trim();
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
     window.open(url, '_blank', 'noopener,noreferrer');
-  };
+  }, [item?.url]);
 
-  const setRating = r => onUpdate?.(item.id, { rating: r === item.rating ? 0 : r });
+  const setRating = useCallback((r) => {
+    onUpdate?.(item.id, { rating: r === item.rating ? 0 : r });
+  }, [onUpdate, item.id, item.rating]);
 
-  const toggleFavorite = () => {
+  const toggleFavorite = useCallback(() => {
     onUpdate?.(item.id, { favorite: !item.favorite });
-  };
+  }, [onUpdate, item.id, item.favorite]);
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = useCallback(() => {
     setShowDeleteConfirmation(true);
-  };
+  }, []);
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = useCallback(() => {
     onDelete?.(item.id);
     setShowDeleteConfirmation(false);
-  };
+  }, [onDelete, item.id]);
 
-  const handleDeleteCancel = () => {
+  const handleDeleteCancel = useCallback(() => {
     setShowDeleteConfirmation(false);
-  };
+  }, []);
 
-  const inc = () => {
+  const inc = useCallback(() => {
     if (item.type === 'movie') return;
     const next = Math.min((item.watchedEpisodes || 0) + 1, item.totalEpisodes || Infinity);
     onUpdate?.(item.id, { watchedEpisodes: next, status: (item.totalEpisodes && next >= item.totalEpisodes) ? 'completed' : item.status });
-  };
-  const dec = () => {
+  }, [onUpdate, item.id, item.type, item.watchedEpisodes, item.totalEpisodes, item.status]);
+
+  const dec = useCallback(() => {
     if (item.type === 'movie') return;
     const next = Math.max((item.watchedEpisodes || 0) - 1, 0);
     onUpdate?.(item.id, { watchedEpisodes: next, status: next === 0 && item.status === 'completed' ? 'planned' : item.status });
-  };
+  }, [onUpdate, item.id, item.type, item.watchedEpisodes, item.status]);
 
   const progress = useMemo(() => {
     if (item.type === 'movie') return 100;
@@ -490,13 +707,20 @@ export default function MediaCard({ item, onUpdate, onDelete, onEdit, isDarkThem
   const percentColor = progress >= 100 ? '#9ca3af' : progress >= 75 ? '#22c55e' : progress >= 40 ? '#a3e635' : '#22c55e';
 
   return (
-    <CardContainer>
-      <Card $flipped={showDeleteConfirmation}>
+    <CardContainer
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      whileHover={{ y: -2 }}
+      layout
+    >
+      <Card $flipped={showDeleteConfirmation} $sizes={cardSizes}>
         {/* Передняя сторона карточки */}
-        <CardFront>
-          <Grid>
+        <CardFront $sizes={cardSizes}>
+          <Grid $sizes={cardSizes}>
             <Poster data-has={!!item.imageUrl} data-empty="Нет постера">
-              {item.imageUrl ? <img src={item.imageUrl} alt={item.title} /> : null}
+              {item.imageUrl ? <LazyImage src={item.imageUrl} alt={item.title} /> : null}
             </Poster>
 
             <Right>
@@ -504,17 +728,18 @@ export default function MediaCard({ item, onUpdate, onDelete, onEdit, isDarkThem
                 <Header>
                   <Title
                     $hasUrl={!!item.url}
+                    $sizes={cardSizes}
                     onClick={item.url ? openExternal : undefined}
                     title={item.url ? 'Открыть ссылку' : undefined}
                   >
                     {item.title}
-                    {item.url ? <ExternalLink size={16} /> : null}
+                    {item.url ? <ExternalLink size={14} /> : null}
                   </Title>
                   <TypeBadge>{typeLabel[item.type] || item.type}</TypeBadge>
                 </Header>
 
                 <MetaRow>
-                  <Meta>
+                  <Meta $sizes={cardSizes}>
                     {item.year && <span>{item.year}</span>}
                     {item.totalEpisodes
                       ? <span>{item.watchedEpisodes || 0}/{item.totalEpisodes} {item.type === 'manga' ? 'гл.' : 'эп.'}</span>
@@ -542,24 +767,43 @@ export default function MediaCard({ item, onUpdate, onDelete, onEdit, isDarkThem
                           onClick={() => setRating(n)}
                           aria-label={`Оценка ${n}`}
                           title={`Оценка ${n}`}
+                          whileHover={{ scale: 1.2 }}
+                          whileTap={{ scale: 0.9 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 20 }}
                         >
-                          <Star size={14} />
+                          <Star size={12} />
                         </StarBtn>
                       );
                     })}
                   </Stars>
-                  <RatingText>{(hoverRating || item.rating) ? `${hoverRating || item.rating}/10` : 'Без оценки'}</RatingText>
+                  <RatingText $sizes={cardSizes}>{(hoverRating || item.rating) ? `${hoverRating || item.rating}/10` : 'Без оценки'}</RatingText>
                 </RatingRow>
 
                 {showProgress && (
                   <ProgressRow>
                     <Bar title={`${progress}%`}>
-                      <Fill $w={progress} $color={percentColor} />
+                      <Fill $w={progress} />
                     </Bar>
                     <Pct>{progress}%</Pct>
                     <div style={{ display:'flex', gap:8 }}>
-                      <Round onClick={dec} title="−1"><Minus size={16} /></Round>
-                      <Round onClick={inc} title="+1"><Plus size={16} /></Round>
+                      <Round 
+                        onClick={dec} 
+                        title="−1"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                      >
+                        <Minus size={14} />
+                      </Round>
+                      <Round 
+                        onClick={inc} 
+                        title="+1"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                      >
+                        <Plus size={14} />
+                      </Round>
                     </div>
                   </ProgressRow>
                 )}
@@ -568,34 +812,46 @@ export default function MediaCard({ item, onUpdate, onDelete, onEdit, isDarkThem
               <BottomRow>
                 {item.tags?.length > 0 || item.comment ? (
                   <Tags>
-                    {item.tags?.slice(0, 3).map((t, i) => (
-                      <TagChip key={i}><TagIcon size={12} /> {t}</TagChip>
+                    {item.tags?.slice(0, 1).map((t, i) => (
+                      <TagChip key={i}><TagIcon size={10} /> {t}</TagChip>
                     ))}
-                    {item.tags && item.tags.length > 3 && <TagChip>+{item.tags.length - 3}</TagChip>}
+                    {item.tags && item.tags.length > 1 && <TagChip>+{item.tags.length - 1}</TagChip>}
                     {item.comment && (
                       <TagChip title={item.comment}>
-                        <MessageCircle size={12} /> заметка
+                        <MessageCircle size={10} /> заметка
                       </TagChip>
                     )}
                   </Tags>
                 ) : <div />}
 
                 <IconActions>
-                  <GhostBtn onClick={() => onEdit?.(item)} title="Редактировать">
-                    <Edit3 size={16} />
+                  <GhostBtn 
+                    onClick={() => onEdit?.(item)} 
+                    title="Редактировать"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  >
+                    <Edit3 size={14} />
                   </GhostBtn>
                   <GhostBtn
                     onClick={toggleFavorite}
                     title={item.favorite ? "Убрать из избранного" : "Добавить в избранное"}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   >
-                    <Heart size={16} fill={item.favorite ? "#ef4444" : "none"} />
+                    <Heart size={14} fill={item.favorite ? "#ef4444" : "none"} />
                   </GhostBtn>
                   <GhostBtn
                     className="danger"
                     onClick={handleDeleteClick}
                     title="Удалить"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                   </GhostBtn>
                 </IconActions>
               </BottomRow>
@@ -604,10 +860,10 @@ export default function MediaCard({ item, onUpdate, onDelete, onEdit, isDarkThem
         </CardFront>
 
         {/* Обратная сторона карточки */}
-        <CardBack>
+        <CardBack $sizes={cardSizes}>
           <WarningContent>
             <WarningIcon>
-              <AlertTriangle size={24} />
+              <AlertTriangle size={20} />
             </WarningIcon>
             
             <WarningText>
@@ -616,12 +872,24 @@ export default function MediaCard({ item, onUpdate, onDelete, onEdit, isDarkThem
             </WarningText>
             
             <ConfirmationButtons>
-              <ConfirmBtn className="secondary" onClick={handleDeleteCancel}>
-                <X size={16} />
+              <ConfirmBtn 
+                className="secondary" 
+                onClick={handleDeleteCancel}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <X size={14} />
                 Отменить
               </ConfirmBtn>
-              <ConfirmBtn className="danger" onClick={handleDeleteConfirm}>
-                <Trash2 size={16} />
+              <ConfirmBtn 
+                className="danger" 
+                onClick={handleDeleteConfirm}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <Trash2 size={14} />
                 Удалить
               </ConfirmBtn>
             </ConfirmationButtons>
@@ -630,4 +898,8 @@ export default function MediaCard({ item, onUpdate, onDelete, onEdit, isDarkThem
       </Card>
     </CardContainer>
   );
-}
+});
+
+MediaCard.displayName = 'MediaCard';
+
+export default MediaCard;

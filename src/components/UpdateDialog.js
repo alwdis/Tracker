@@ -1,31 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import styled, { ThemeProvider } from 'styled-components';
 import { X, Download, RefreshCw, Check, AlertTriangle, Clock } from 'lucide-react';
+import { getTheme } from '../themes';
 
-// Теми для диалогов
-const lightTheme = {
-  background: '#ffffff',
-  surface: '#f8fafc',
-  text: '#334155',
-  textSecondary: '#64748b',
-  border: '#e2e8f0',
-  accent: '#667eea',
-  success: '#10b981',
-  warning: '#f59e0b',
-  error: '#ef4444'
-};
-
-const darkTheme = {
-  background: '#1a1a1a',
-  surface: '#2d2d2d',
-  text: '#ffffff',
-  textSecondary: 'rgba(255, 255, 255, 0.8)',
-  border: 'rgba(255, 255, 255, 0.1)',
-  accent: '#667eea',
-  success: '#22c55e',
-  warning: '#eab308',
-  error: '#ef4444'
-};
+// Теми удалены, теперь используем новую систему тем
 
 const Overlay = styled.div`
   position: fixed;
@@ -270,7 +248,7 @@ const FooterText = styled.div`
   line-height: 1.5;
 `;
 
-export default function UpdateDialog({ open, onClose, darkMode, currentVersion, updateInfo, updateStatus, downloadProgress, onCheckUpdates, onDownloadUpdate, onInstallUpdate }) {
+export default function UpdateDialog({ open, onClose, currentTheme, currentVersion, updateInfo, updateStatus, downloadProgress, onCheckUpdates, onDownloadUpdate, onInstallUpdate }) {
   const [msg, setMsg] = useState(null);
   const [msgType, setMsgType] = useState('info');
 
@@ -332,7 +310,7 @@ export default function UpdateDialog({ open, onClose, darkMode, currentVersion, 
   const statusMessage = getStatusMessage();
 
   return (
-    <ThemeProvider theme={darkMode ? darkTheme : lightTheme}>
+    <ThemeProvider theme={getTheme(currentTheme)}>
       <Overlay onClick={onClose}>
         <Dialog onClick={e => e.stopPropagation()}>
           <Header>

@@ -1,27 +1,12 @@
 import React, { useState } from 'react';
 import styled, { ThemeProvider } from 'styled-components';
+import { motion } from 'framer-motion';
 import { X, Star } from 'lucide-react';
+import { getTheme } from '../themes';
 
-// Теми для диалогов
-const lightTheme = {
-  background: '#ffffff',
-  surface: '#f8fafc',
-  text: '#334155',
-  textSecondary: '#64748b',
-  border: '#e2e8f0',
-  accent: '#667eea'
-};
+// Теми удалены, теперь используем новую систему тем
 
-const darkTheme = {
-  background: '#1a1a1a',
-  surface: '#2d2d2d',
-  text: '#ffffff',
-  textSecondary: 'rgba(255, 255, 255, 0.8)',
-  border: 'rgba(255, 255, 255, 0.1)',
-  accent: '#667eea'
-};
-
-const Overlay = styled.div`
+const Overlay = styled(motion.div)`
   position: fixed;
   top: 0;
   left: 0;
@@ -35,7 +20,7 @@ const Overlay = styled.div`
   z-index: 1000;
 `;
 
-const Dialog = styled.div`
+const Dialog = styled(motion.div)`
   background: ${props => props.theme.background};
   border-radius: 24px;
   padding: 32px;
@@ -181,7 +166,7 @@ const ButtonGroup = styled.div`
   margin-top: 8px;
 `;
 
-const Button = styled.button`
+const Button = styled(motion.button)`
   flex: 1;
   padding: 16px 24px;
   border: none;
@@ -219,7 +204,7 @@ const Button = styled.button`
   }
 `;
 
-function RatingDialog({ item, onClose, onSave, isDarkTheme }) {
+function RatingDialog({ item, onClose, onSave, currentTheme }) {
   const [rating, setRating] = useState(item.rating || 0);
   const [comment, setComment] = useState(item.comment || '');
   const [hoverRating, setHoverRating] = useState(0);
@@ -241,29 +226,52 @@ function RatingDialog({ item, onClose, onSave, isDarkTheme }) {
     const stars = [];
     for (let i = 1; i <= 10; i++) {
       stars.push(
-        <StarButton
+        <motion.div
           key={i}
-          type="button"
-          $filled={i <= (hoverRating || rating)}
-          onClick={() => handleStarClick(i)}
-          onMouseEnter={() => setHoverRating(i)}
-          onMouseLeave={() => setHoverRating(0)}
-          title={`Оценка ${i}`}
+          whileHover={{ scale: 1.2 }}
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
         >
-          <Star 
-            size={32} 
-            fill={i <= (hoverRating || rating) ? 'currentColor' : 'none'} 
-          />
-        </StarButton>
+          <StarButton
+            type="button"
+            $filled={i <= (hoverRating || rating)}
+            onClick={() => handleStarClick(i)}
+            onMouseEnter={() => setHoverRating(i)}
+            onMouseLeave={() => setHoverRating(0)}
+            title={`Оценка ${i}`}
+          >
+            <Star 
+              size={32} 
+              fill={i <= (hoverRating || rating) ? 'currentColor' : 'none'} 
+            />
+          </StarButton>
+        </motion.div>
       );
     }
     return stars;
   };
 
   return (
-    <ThemeProvider theme={isDarkTheme ? darkTheme : lightTheme}>
-      <Overlay onClick={onClose}>
-        <Dialog onClick={e => e.stopPropagation()}>
+    <ThemeProvider theme={getTheme(currentTheme)}>
+      <Overlay 
+        onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        <Dialog 
+          onClick={e => e.stopPropagation()}
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 300, 
+            damping: 30,
+            duration: 0.3 
+          }}
+        >
           <Header>
             <Title>Поздравляем! 🎉</Title>
             <CloseButton onClick={onClose}>
@@ -302,6 +310,9 @@ function RatingDialog({ item, onClose, onSave, isDarkTheme }) {
                 type="button" 
                 className="secondary" 
                 onClick={handleSkip}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
                 Пропустить
               </Button>
@@ -309,6 +320,9 @@ function RatingDialog({ item, onClose, onSave, isDarkTheme }) {
                 type="submit" 
                 className="primary"
                 disabled={!rating}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
                 Сохранить оценку
               </Button>

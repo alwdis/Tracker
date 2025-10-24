@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import styled, { ThemeProvider, keyframes } from 'styled-components';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Tag, X as XIcon, Image as ImageIcon, ExternalLink, Search, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { searchRU, getSeriesDetailsRU, getMangaDetailsRU } from '../../lib/ruSources';
+import { searchRU, getSeriesDetailsRU, getMangaDetailsRU } from '../lib/ruSources';
+import { getTheme } from '../themes';
 
 // === анимации ===
 const fadeIn = keyframes`
@@ -24,33 +26,10 @@ const shimmer = keyframes`
   100% { background-position: calc(200px + 100%) 0; }
 `;
 
-// === темы в стиле CloudSyncDialog ===
-const lightTheme = {
-  background: '#ffffff',
-  surface: '#f8fafc',
-  text: '#334155',
-  textSecondary: '#64748b',
-  border: '#e2e8f0',
-  accent: '#667eea',
-  success: '#10b981',
-  warning: '#f59e0b',
-  error: '#ef4444'
-};
-
-const darkTheme = {
-  background: '#1a1a1a',
-  surface: '#2d2d2d',
-  text: '#ffffff',
-  textSecondary: 'rgba(255, 255, 255, 0.8)',
-  border: 'rgba(255, 255, 255, 0.1)',
-  accent: '#667eea',
-  success: '#22c55e',
-  warning: '#eab308',
-  error: '#ef4444'
-};
+// === темы удалены, теперь используем новую систему тем ===
 
 // === улучшенные стили ===
-const Overlay = styled.div`
+const Overlay = styled(motion.div)`
   position: fixed;
   top: 0;
   left: 0;
@@ -64,7 +43,7 @@ const Overlay = styled.div`
   z-index: 1000;
 `;
 
-const Dialog = styled.div`
+const Dialog = styled(motion.div)`
   background: ${props => props.theme.background};
   border-radius: 24px;
   padding: 32px;
@@ -117,14 +96,17 @@ const Input = styled.input`
   padding: 12px 16px;
   border: 1px solid ${props => props.theme.border};
   border-radius: 12px;
-  background: ${props => props.theme.surface};
+  background: linear-gradient(135deg, ${props => props.theme.surface} 0%, ${props => props.theme.surfaceSecondary} 100%);
   color: ${props => props.theme.text};
   font-size: 14px;
-  transition: border-color 0.2s ease;
+  transition: all 0.2s ease;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
 
   &:focus {
     outline: none;
     border-color: ${props => props.theme.accent};
+    background: ${props => props.theme.surface};
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), inset 0 1px 3px rgba(0,0,0,0.1);
   }
 
   &:disabled {
@@ -138,16 +120,19 @@ const Select = styled.select`
   padding: 12px 16px;
   border: 1px solid ${props => props.theme.border};
   border-radius: 12px;
-  background: ${props => props.theme.surface};
+  background: linear-gradient(135deg, ${props => props.theme.surface} 0%, ${props => props.theme.surfaceSecondary} 100%);
   color: ${props => props.theme.text};
   font-size: 14px;
-  transition: border-color 0.2s ease;
+  transition: all 0.2s ease;
   appearance: none;
   cursor: pointer;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
 
   &:focus {
     outline: none;
     border-color: ${props => props.theme.accent};
+    background: ${props => props.theme.surface};
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), inset 0 1px 3px rgba(0,0,0,0.1);
   }
 
   &:disabled {
@@ -156,7 +141,7 @@ const Select = styled.select`
   }
 `;
 
-const Button = styled.button`
+const Button = styled(motion.button)`
   width: 100%;
   padding: 16px 20px;
   border: none;
@@ -169,25 +154,61 @@ const Button = styled.button`
   justify-content: center;
   gap: 12px;
   transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+      rgba(255,255,255,0.1) 0%, 
+      rgba(255,255,255,0.05) 50%, 
+      rgba(255,255,255,0.1) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 0;
+  }
+
+  & > * {
+    position: relative;
+    z-index: 1;
+  }
 
   &.primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 3s ease infinite;
     color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 
     &:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+      
+      &::before {
+        opacity: 1;
+      }
     }
   }
 
   &.secondary {
-    background: ${props => props.theme.surface};
+    background: linear-gradient(135deg, ${props => props.theme.surface} 0%, ${props => props.theme.surfaceSecondary} 100%);
     color: ${props => props.theme.text};
     border: 1px solid ${props => props.theme.border};
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 
     &:hover:not(:disabled) {
-      background: ${props => props.theme.background};
+      background: linear-gradient(135deg, ${props => props.theme.background} 0%, ${props => props.theme.surface} 100%);
       transform: translateY(-1px);
+      box-shadow: 0 6px 16px ${props => props.theme.shadow};
+      
+      &::before {
+        opacity: 1;
+      }
     }
   }
 
@@ -196,6 +217,12 @@ const Button = styled.button`
     cursor: not-allowed;
     transform: none !important;
     box-shadow: none !important;
+  }
+
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
 `;
 
@@ -224,7 +251,7 @@ const Results = styled.div`
   background: ${props => props.theme.surface};
 `;
 
-const ResultItem = styled.button`
+const ResultItem = styled(motion.button)`
   display: flex;
   gap: 12px;
   width: 100%;
@@ -234,9 +261,36 @@ const ResultItem = styled.button`
   border: 0;
   background: transparent;
   transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+      rgba(102, 126, 234, 0.05) 0%, 
+      rgba(118, 75, 162, 0.05) 50%, 
+      rgba(240, 147, 251, 0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 0;
+  }
+
+  & > * {
+    position: relative;
+    z-index: 1;
+  }
   
   &:hover {
     background: ${props => props.theme.background};
+    
+    &::before {
+      opacity: 1;
+    }
   }
   
   &:not(:last-child) {
@@ -308,7 +362,7 @@ const predefinedTags = [
   'сэйнэн','сёдзё','сёнэн','детский','исекай'
 ];
 
-function AddDialog({ item, onClose, onSave, isDarkTheme }) {
+function AddDialog({ item, onClose, onSave, currentTheme }) {
   const [formData, setFormData] = useState({
     title: '',
     type: 'anime',
@@ -422,7 +476,7 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
   const renderStars = () => Array.from({ length: 10 }, (_, i) => {
     const n = i + 1;
     return (
-      <button
+      <motion.button
         key={n}
         type="button"
         style={{ background: 'none', border: 0, cursor: 'pointer', color: n <= (hoverRating || formData.rating) ? '#ffd700' : 'rgba(255,255,255,.6)' }}
@@ -430,9 +484,12 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
         onMouseEnter={() => setHoverRating(n)}
         onMouseLeave={() => setHoverRating(0)}
         title={`Оценка ${n}`}
+        whileHover={{ scale: 1.2 }}
+        whileTap={{ scale: 0.9 }}
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
       >
         <Star size={24} fill={n <= (hoverRating || formData.rating) ? 'currentColor' : 'none'} />
-      </button>
+      </motion.button>
     );
   });
 
@@ -485,9 +542,26 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
   ];
 
   return (
-    <ThemeProvider theme={isDarkTheme ? darkTheme : lightTheme}>
-      <Overlay onClick={onClose}>
-        <Dialog onClick={(e) => e.stopPropagation()}>
+    <ThemeProvider theme={getTheme(currentTheme)}>
+      <Overlay 
+        onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        <Dialog 
+          onClick={(e) => e.stopPropagation()}
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 300, 
+            damping: 30,
+            duration: 0.3 
+          }}
+        >
 
           <Form onSubmit={handleSubmit}>
             {/* Основная информация */}
@@ -520,17 +594,33 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
               )}
               {results.length > 0 && (
                 <Results>
-                  {results.map((r) => (
-                    <ResultItem key={`${r.source}-${r.id}`} type="button" onClick={() => applyResult(r)}>
-                      <Poster>{r.imageUrl ? <img src={r.imageUrl} alt="" /> : null}</Poster>
-                      <RText>
-                        <RTitle>{r.title}</RTitle>
-                        <RMeta>
-                          {(r.year ? `${r.year} • ` : '') + (r.type === 'anime' ? 'Аниме' : r.type === 'movie' ? 'Фильм' : r.type === 'series' ? 'Сериал' : r.type === 'manga' ? 'Манга' : 'Неизвестно')}
-                        </RMeta>
-                      </RText>
-                    </ResultItem>
-                  ))}
+                  <AnimatePresence>
+                    {results.map((r, index) => (
+                      <ResultItem 
+                        key={`${r.source}-${r.id}`} 
+                        type="button" 
+                        onClick={() => applyResult(r)}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ 
+                          duration: 0.2, 
+                          delay: index * 0.05,
+                          ease: "easeOut"
+                        }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Poster>{r.imageUrl ? <img src={r.imageUrl} alt="" /> : null}</Poster>
+                        <RText>
+                          <RTitle>{r.title}</RTitle>
+                          <RMeta>
+                            {(r.year ? `${r.year} • ` : '') + (r.type === 'anime' ? 'Аниме' : r.type === 'movie' ? 'Фильм' : r.type === 'series' ? 'Сериал' : r.type === 'manga' ? 'Манга' : 'Неизвестно')}
+                          </RMeta>
+                        </RText>
+                      </ResultItem>
+                    ))}
+                  </AnimatePresence>
                 </Results>
               )}
 
@@ -615,7 +705,7 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
                 <Label>Оценка</Label>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
                   {renderStars()}
-                  <span style={{ fontSize: 14, color: isDarkTheme ? 'rgba(255,255,255,.7)' : '#64748b' }}>
+                  <span style={{ fontSize: 14, color: getTheme(currentTheme).textSecondary }}>
                     {formData.rating ? `${formData.rating}/10` : 'Поставить оценку'}
                   </span>
                 </div>
@@ -625,15 +715,15 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
                 <Label>Теги</Label>
                 <div style={{
                   display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
-                  padding: 12, background: isDarkTheme ? '#2d2d2d' : '#f8fafc',
-                  border: `1px solid ${isDarkTheme ? 'rgba(255,255,255,.1)' : '#e2e8f0'}`, 
+                  padding: 12, background: getTheme(currentTheme).surfaceSecondary,
+                  border: `1px solid ${getTheme(currentTheme).border}`, 
                   borderRadius: 12, marginTop: 8
                 }}>
                   {formData.tags.map((t, i) => (
                     <span key={i} style={{ 
                       display:'inline-flex', alignItems:'center', gap:6, 
                       padding:'8px 12px', borderRadius:20, 
-                      background: isDarkTheme ? '#667eea' : '#667eea', 
+                      background: getTheme(currentTheme).accent, 
                       color:'#fff', fontSize:13, fontWeight: 600
                     }}>
                       <Tag size={12} /> {t}
@@ -671,8 +761,8 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
                         <button key={tag} type="button" onMouseDown={() => handleAddTag(tag)}
                           style={{
                             padding:'6px 12px', borderRadius:16, 
-                            border:`2px solid ${isDarkTheme ? 'rgba(255,255,255,.1)' : '#e2e8f0'}`,
-                            background: isDarkTheme ? '#1e293b' : '#fff', 
+                            border:`2px solid ${getTheme(currentTheme).border}`,
+                            background: getTheme(currentTheme).surface, 
                             color:'inherit', cursor:'pointer', fontSize: 13,
                             transition: 'all 0.2s ease', fontWeight: 500
                           }}
@@ -687,8 +777,23 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
 
             {/* Кнопки действий */}
             <div style={{ display:'flex', gap:12, marginTop:8 }}>
-              <Button type="button" className="secondary" onClick={onClose}>Отмена</Button>
-              <Button type="submit" className="primary">
+              <Button 
+                type="button" 
+                className="secondary" 
+                onClick={onClose}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                Отмена
+              </Button>
+              <Button 
+                type="submit" 
+                className="primary"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
                 {item ? 'Сохранить' : 'Добавить'}
               </Button>
             </div>

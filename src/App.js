@@ -1,56 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import styled, { createGlobalStyle, ThemeProvider } from 'styled-components';
-import { Plus, Film, Tv, Play, BookOpen, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Tag, Filter, RefreshCw, Cloud, Database, Heart } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Film, Tv, Play, BookOpen, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Tag, Filter, RefreshCw, Cloud, Database, Heart, Palette } from 'lucide-react';
 import { APP_VERSION } from './version';
+import debounce from 'lodash.debounce';
 
-// Импортируем компоненты
-import AddDialog from './components/AddDialog/AddDialog';
-import MediaCard from './components/MediaCard/MediaCard';
-import RatingDialog from './components/RatingDialog/RatingDialog';
-import Statistics from './components/Statistics/Statistics';
-import CloudSyncDialog from './components/CloudSyncDialog/CloudSyncDialog';
-import BackupDialog from './components/BackupDialog/BackupDialog';
-import UpdateDialog from './components/UpdateDialog/UpdateDialog';
-import UpdateButtonComponent from './components/UpdateButton/UpdateButton';
+// Импортируем компоненты напрямую для отладки
+import AddDialog from './components/AddDialog';
+import MediaCard from './components/MediaCard';
+import RatingDialog from './components/RatingDialog';
+import Statistics from './components/Statistics';
+import CloudSyncDialog from './components/CloudSyncDialog';
+import BackupDialog from './components/BackupDialog';
+import UpdateDialog from './components/UpdateDialog';
+import UpdateButtonComponent from './components/UpdateButton';
+import ThemeSelector from './components/ThemeSelector';
+import VirtualizedMediaGrid from './components/VirtualizedMediaGrid';
+
+// Импортируем новую систему тем
+import { themes, getTheme } from './themes';
 
 /* ---------- ТЕМА ---------- */
-const lightTheme = {
-  background: '#f8fafc',
-  surface: '#ffffff',
-  surfaceSecondary: '#f1f5f9',
-  text: '#334155',
-  textSecondary: '#64748b',
-  textTertiary: '#94a3b8',
-  border: '#e2e8f0',
-  borderLight: '#f1f5f9',
-  accent: '#667eea',
-  accentGradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-  success: '#10b981',
-  warning: '#f59e0b',
-  error: '#ef4444',
-  rating: '#f59e0b',
-  shadow: 'rgba(0, 0, 0, 0.1)',
-  cardHover: 'rgba(255, 255, 255, 0.8)'
-};
-
-const darkTheme = {
-  background: '#0a0a0a',
-  surface: '#1a1a1a',
-  surfaceSecondary: '#2d2d2d',
-  text: '#ffffff',
-  textSecondary: 'rgba(255, 255, 255, 0.8)',
-  textTertiary: 'rgba(255, 255, 255, 0.6)',
-  border: 'rgba(255, 255, 255, 0.1)',
-  borderLight: 'rgba(255, 255, 255, 0.05)',
-  accent: '#667eea',
-  accentGradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-  success: '#22c55e',
-  warning: '#eab308',
-  error: '#ef4444',
-  rating: '#ffd700',
-  shadow: 'rgba(0, 0, 0, 0.3)',
-  cardHover: 'rgba(255, 255, 255, 0.05)'
-};
+// Старые темы удалены, теперь используем новую систему тем
 
 const GlobalStyle = createGlobalStyle`
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -141,20 +112,50 @@ const TabsRow = styled.div`
   }
 `;
 
-const TopTab = styled.button`
+const TopTab = styled(motion.button)`
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
   border-radius: 9999px;
   border: 1px solid ${p => p.theme.border};
-  background: ${p => p.$active ? p.theme.surfaceSecondary : 'transparent'};
+  background: ${p => p.$active ? 
+    'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)' : 
+    'transparent'};
   color: ${p => p.$active ? p.theme.text : p.theme.textSecondary};
   font-weight: 600;
-  transition: .2s;
+  transition: all .3s ease;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+      rgba(102, 126, 234, 0.05) 0%, 
+      rgba(118, 75, 162, 0.05) 50%, 
+      rgba(240, 147, 251, 0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 0;
+  }
+
+  & > * {
+    position: relative;
+    z-index: 1;
+  }
   
   &:hover {
-    background: ${p => p.theme.surfaceSecondary};
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    transform: translateY(-1px);
+    
+    &::before {
+      opacity: 1;
+    }
   }
   
   @media (max-width: 768px) {
@@ -173,17 +174,19 @@ const TopTab = styled.button`
 const SearchContainer = styled.div`
   display: flex;
   align-items: center;
-  background: ${p => p.theme.surfaceSecondary};
+  background: linear-gradient(135deg, ${p => p.theme.surfaceSecondary} 0%, ${p => p.theme.surface} 100%);
   border: 1px solid ${p => p.theme.border};
   border-radius: 9999px;
   padding: 8px 16px;
   flex: 1;
   min-width: 320px;
   transition: all .2s ease;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
   
   &:focus-within {
     border-color: ${p => p.theme.accent};
     background: ${p => p.theme.surface};
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), inset 0 1px 3px rgba(0,0,0,0.1);
   }
   
   @media (max-width: 768px) {
@@ -236,10 +239,47 @@ const FilterLabel = styled.span`font-size:14px; font-weight:600; color:${p=>p.th
 const TagsContainer = styled.div`display:flex; flex-wrap:wrap; gap:8px; flex:1;`;
 const TagChip = styled.button`
   display:flex; align-items:center; gap:6px; padding:6px 12px;
-  background:${p=>p.$selected ? p.theme.accent : p.theme.surfaceSecondary};
-  border:1px solid ${p=>p.$selected ? p.theme.accent : p.theme.border};
+  background:${p=>p.$selected ? 
+    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 
+    'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)'};
+  border:1px solid ${p=>p.$selected ? '#667eea' : p.theme.border};
   border-radius:20px; color:${p=>p.$selected ? '#fff' : p.theme.text}; font-size:12px; font-weight:500; cursor:pointer; transition:.2s;
-  &:hover{ background:${p=>p.$selected ? p.theme.accent : p.theme.surface}; transform:translateY(-1px);}
+  box-shadow: ${p=>p.$selected ? '0 2px 8px rgba(102, 126, 234, 0.3)' : '0 1px 3px rgba(0,0,0,0.1)'};
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+      rgba(255,255,255,0.1) 0%, 
+      rgba(255,255,255,0.05) 50%, 
+      rgba(255,255,255,0.1) 100%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 0;
+  }
+
+  & > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  &:hover{ 
+    background:${p=>p.$selected ? 
+      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 
+      'linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)'};
+    transform:translateY(-1px);
+    box-shadow: ${p=>p.$selected ? '0 4px 12px rgba(102, 126, 234, 0.4)' : '0 2px 6px rgba(0,0,0,0.15)'};
+    
+    &::before {
+      opacity: 1;
+    }
+  }
 `;
 const TagCount = styled.span`
   font-size:10px; background:${p=>p.$selected ? 'rgba(255,255,255,.2)' : p.theme.border};
@@ -253,7 +293,7 @@ const ClearFiltersButton = styled.button`
 `;
 
 const MainContent = styled.main`flex:1; display:flex; flex-direction:column; overflow:hidden;`;
-const ContentArea = styled.div`
+const ContentArea = styled(motion.div)`
   flex: 1;
   padding: clamp(16px, 2vw, 32px);
   overflow-y: auto;
@@ -269,7 +309,7 @@ const ContentArea = styled.div`
   }
 `;
 
-const StatusSection = styled.div`
+const StatusSection = styled(motion.div)`
   margin-bottom: 40px;
   
   @media (max-width: 768px) {
@@ -311,11 +351,12 @@ const StatusTitle = styled.h2`
   }
 `;
 
-const MediaGrid = styled.div`
+const MediaGrid = styled(motion.div)`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
   gap: 24px;
   align-items: stretch;
+  will-change: transform, opacity;
   
   @media (max-width: 1400px) {
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -355,11 +396,63 @@ const EmptyState = styled.div`
 `;
 const SearchEmptyState = styled(EmptyState)` h3{ color:${p=>p.theme.accent}; }`;
 
-const FloatingAddButton = styled.button`
-  position:fixed; bottom:32px; right:32px; display:flex; align-items:center; gap:12px;
-  padding:16px 24px; background:${p=>p.theme.accentGradient}; border:none; border-radius:50px; color:#fff; font-size:16px; font-weight:600; cursor:pointer; transition:all .3s ease;
-  box-shadow:0 8px 32px rgba(102,126,234,.4); z-index:1000;
-  &:hover{ transform:translateY(-2px) scale(1.05); box-shadow:0 12px 40px rgba(102,126,234,.6); }
+const FloatingAddButton = styled(motion.button)`
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+  z-index: 1000;
+  overflow: hidden;
+  will-change: transform, box-shadow;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+      rgba(255,255,255,0.1) 0%, 
+      rgba(255,255,255,0.05) 50%, 
+      rgba(255,255,255,0.1) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 0;
+  }
+
+  & > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  &:hover { 
+    transform: translateY(-2px) scale(1.1); 
+    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.6);
+    
+    &::before {
+      opacity: 1;
+    }
+  }
+
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
 `;
 
 const UpdateButton = styled.button`
@@ -517,16 +610,36 @@ function App() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
-  const [isDarkTheme, setIsDarkTheme] = useState(true);
+  const [currentTheme, setCurrentTheme] = useState('dark');
+  const [showThemeSelector, setShowThemeSelector] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
+  
+
+  // Debounced поиск
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  
+  // Создаем debounced функцию для поиска
+  const debouncedSetSearchQuery = useCallback(
+    debounce((value) => {
+      setDebouncedSearchQuery(value);
+    }, 300),
+    []
+  );
+
+  // Обновляем debounced поиск при изменении обычного поиска
+  useEffect(() => {
+    debouncedSetSearchQuery(searchQuery);
+  }, [searchQuery, debouncedSetSearchQuery]);
 
   const { isOnline, isStandalone, showInstallPrompt, installPWA, dismissInstallPrompt } = usePWA();
 
   useEffect(() => {
     loadMediaData();
     const savedTheme = localStorage.getItem('tracker-theme');
-    if (savedTheme) setIsDarkTheme(savedTheme === 'dark');
+    if (savedTheme && themes[savedTheme]) {
+      setCurrentTheme(savedTheme);
+    }
   }, []);
 
   useEffect(() => {
@@ -571,10 +684,14 @@ function App() {
     }
   }, []);
 
+  const handleThemeChange = (themeId) => {
+    setCurrentTheme(themeId);
+    localStorage.setItem('tracker-theme', themeId);
+  };
+
   const toggleTheme = () => {
-    const next = !isDarkTheme;
-    setIsDarkTheme(next);
-    localStorage.setItem('tracker-theme', next ? 'dark' : 'light');
+    const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    handleThemeChange(nextTheme);
   };
 
   const loadMediaData = async () => {
@@ -592,15 +709,15 @@ function App() {
     } catch (e) { console.error('Error loading media data:', e); }
   };
 
-  const saveMediaData = async (newMedia) => {
+  const saveMediaData = useCallback(async (newMedia) => {
     try {
       setMedia(newMedia);
       if (window.electronAPI) await window.electronAPI.writeMediaData(newMedia);
       else localStorage.setItem('media-data', JSON.stringify(newMedia));
     } catch (e) { console.error('Error saving media data:', e); }
-  };
+  }, []);
 
-  const addMediaItem = (item) => {
+  const addMediaItem = useCallback((item) => {
     const newItem = {
       ...item,
       id: Date.now().toString(),
@@ -610,9 +727,9 @@ function App() {
       tags: item.tags || []
     };
     saveMediaData([...media, newItem]);
-  };
+  }, [media, saveMediaData]);
 
-  const updateMediaItem = (id, updates) => {
+  const updateMediaItem = useCallback((id, updates) => {
     const newMedia = media.map(item => {
       if (item.id !== id) return item;
       const next = { ...item, ...updates };
@@ -623,12 +740,18 @@ function App() {
       return next;
     });
     saveMediaData(newMedia);
-  };
+  }, [media, saveMediaData]);
 
-  const deleteMediaItem = (id) => saveMediaData(media.filter(i => i.id !== id));
-  const editMediaItem = (item) => setEditingItem(item);
-  const saveEditedItem = (updated) => { saveMediaData(media.map(i => i.id === updated.id ? updated : i)); setEditingItem(null); };
-  const handleRatingSave = (id, rating, comment) => { updateMediaItem(id, { rating, comment }); setRatingDialog({ show: false, item: null }); };
+  const deleteMediaItem = useCallback((id) => saveMediaData(media.filter(i => i.id !== id)), [media, saveMediaData]);
+  const editMediaItem = useCallback((item) => setEditingItem(item), []);
+  const saveEditedItem = useCallback((updated) => { 
+    saveMediaData(media.map(i => i.id === updated.id ? updated : i)); 
+    setEditingItem(null); 
+  }, [media, saveMediaData]);
+  const handleRatingSave = useCallback((id, rating, comment) => { 
+    updateMediaItem(id, { rating, comment }); 
+    setRatingDialog({ show: false, item: null }); 
+  }, [updateMediaItem]);
   const clearSearch = () => setSearchQuery('');
 
   
@@ -684,32 +807,48 @@ function App() {
     }
   };
 
-  const toggleTag = (tag) => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
-  const clearFilters = () => { setSelectedTags([]); setSearchQuery(''); };
+  const toggleTag = useCallback((tag) => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]), []);
+  const clearFilters = useCallback(() => { setSelectedTags([]); setSearchQuery(''); }, []);
 
-  const getAllTags = () => {
+  // Мемоизируем вычисление тегов
+  const allTags = useMemo(() => {
     const counts = (media.flatMap(i => i.tags || [])).reduce((acc, t) => (acc[t] = (acc[t] || 0) + 1, acc), {});
     return Object.entries(counts).sort(([,a],[,b]) => b - a).map(([tag, count]) => ({ tag, count }));
-  };
+  }, [media]);
 
-  // Фильтрация
-  const filteredByTab = media.filter(item => item.type === activeTab);
-  const searchedMedia = smartSearch(filteredByTab, searchQuery, selectedTags);
-  const favoritesApplied = showFavoritesOnly
-    ? searchedMedia.filter(item => item.favorite === true)
-    : searchedMedia;
+  // Мемоизируем фильтрацию
+  const filteredByTab = useMemo(() => 
+    media.filter(item => item.type === activeTab), 
+    [media, activeTab]
+  );
 
-  const mediaByStatus = {
+  const searchedMedia = useMemo(() => 
+    smartSearch(filteredByTab, debouncedSearchQuery, selectedTags), 
+    [filteredByTab, debouncedSearchQuery, selectedTags]
+  );
+
+  const favoritesApplied = useMemo(() => 
+    showFavoritesOnly
+      ? searchedMedia.filter(item => item.favorite === true)
+      : searchedMedia,
+    [searchedMedia, showFavoritesOnly]
+  );
+
+  // Определяем, нужно ли использовать виртуализацию (для коллекций больше 50 элементов)
+  const shouldUseVirtualization = useMemo(() => {
+    return favoritesApplied.length > 50;
+  }, [favoritesApplied.length]);
+
+  const mediaByStatus = useMemo(() => ({
     watching: favoritesApplied.filter(item => item.status === 'watching'),
     planned:  favoritesApplied.filter(item => item.status === 'planned'),
     completed:favoritesApplied.filter(item => item.status === 'completed'),
     dropped:  favoritesApplied.filter(item => item.status === 'dropped')
-  };
+  }), [favoritesApplied]);
 
   const hasSearchResults = searchedMedia.length > 0;
   const hasAnyMedia = filteredByTab.length > 0;
-  const isSearching = searchQuery.trim().length > 0 || selectedTags.length > 0;
-  const allTags = getAllTags();
+  const isSearching = debouncedSearchQuery.trim().length > 0 || selectedTags.length > 0;
 
   const renderOnlineStatus = () => (
     <OnlineStatus $isOnline={isOnline}>
@@ -748,31 +887,80 @@ function App() {
     );
   };
 
+  // Функция для рендеринга виртуализированной сетки
+  const renderVirtualizedGrid = (items) => {
+    if (shouldUseVirtualization) {
+      return (
+        <VirtualizedMediaGrid
+          items={items}
+          onUpdate={updateMediaItem}
+          onDelete={deleteMediaItem}
+          onEdit={editMediaItem}
+          currentTheme={currentTheme}
+        />
+      );
+    }
+    return null;
+  };
+
+  // Функция для рендеринга обычной сетки
+  const renderRegularGrid = (items) => {
+    return (
+      <MediaGrid
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        {items.map((item, index) => (
+          <motion.div
+            key={item.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ 
+              duration: 0.3, 
+              delay: index * 0.05,
+              ease: "easeOut"
+            }}
+          >
+            <MediaCard
+              item={item}
+              onUpdate={updateMediaItem}
+              onDelete={deleteMediaItem}
+              onEdit={editMediaItem}
+              currentTheme={currentTheme}
+            />
+          </motion.div>
+        ))}
+      </MediaGrid>
+    );
+  };
+
   const content = () => {
-    if (activeTab === 'statistics') return <Statistics media={media} isDarkTheme={isDarkTheme} />;
+    if (activeTab === 'statistics') return (
+      <Statistics media={media} currentTheme={currentTheme} />
+    );
 
     if (hasSearchResults) {
       return (
         <>
           {Object.entries(mediaByStatus).map(([status, items]) =>
             items.length > 0 && (
-              <StatusSection key={status}>
+              <StatusSection 
+                key={status}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+              >
                 <StatusTitle>
                   {statusConfig[status].title}
                   <span style={{ fontSize:14, opacity:.6, marginLeft:8 }}>({items.length})</span>
+                  {shouldUseVirtualization && (
+                    <span style={{ fontSize:12, opacity:.5, marginLeft:8, color: getTheme(currentTheme).accent }}>
+                      Виртуализировано
+                    </span>
+                  )}
                 </StatusTitle>
-                <MediaGrid>
-                  {items.map(item => (
-                    <MediaCard
-                      key={item.id}
-                      item={item}
-                      onUpdate={updateMediaItem}
-                      onDelete={deleteMediaItem}
-                      onEdit={editMediaItem}
-                      isDarkTheme={isDarkTheme}
-                    />
-                  ))}
-                </MediaGrid>
+                {renderVirtualizedGrid(items) || renderRegularGrid(items)}
               </StatusSection>
             )
           )}
@@ -782,13 +970,19 @@ function App() {
 
     if (isSearching) {
       return (
-        <SearchEmptyState>
-          <h3>Ничего не найдено</h3>
-          <p>Попробуйте изменить запрос или очистить фильтры</p>
-          <p style={{ fontSize:14, opacity:.7 }}>
-            {selectedTags.length > 0 && `Выбранные теги: ${selectedTags.join(', ')}`}
-          </p>
-        </SearchEmptyState>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <SearchEmptyState>
+            <h3>Ничего не найдено</h3>
+            <p>Попробуйте изменить запрос или очистить фильтры</p>
+            <p style={{ fontSize:14, opacity:.7 }}>
+              {selectedTags.length > 0 && `Выбранные теги: ${selectedTags.join(', ')}`}
+            </p>
+          </SearchEmptyState>
+        </motion.div>
       );
     }
 
@@ -797,20 +991,21 @@ function App() {
         <>
           {Object.entries(mediaByStatus).map(([status, items]) =>
             items.length > 0 && (
-              <StatusSection key={status}>
-                <StatusTitle>{statusConfig[status].title}</StatusTitle>
-                <MediaGrid>
-                  {items.map(item => (
-                    <MediaCard
-                      key={item.id}
-                      item={item}
-                      onUpdate={updateMediaItem}
-                      onDelete={deleteMediaItem}
-                      onEdit={editMediaItem}
-                      isDarkTheme={isDarkTheme}
-                    />
-                  ))}
-                </MediaGrid>
+              <StatusSection 
+                key={status}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+              >
+                <StatusTitle>
+                  {statusConfig[status].title}
+                  {shouldUseVirtualization && (
+                    <span style={{ fontSize:12, opacity:.5, marginLeft:8, color: getTheme(currentTheme).accent }}>
+                      Виртуализировано
+                    </span>
+                  )}
+                </StatusTitle>
+                {renderVirtualizedGrid(items) || renderRegularGrid(items)}
               </StatusSection>
             )
           )}
@@ -819,23 +1014,61 @@ function App() {
     }
 
     return (
-      <EmptyState>
-        <h3>Пока ничего нет</h3>
-        <p>Может пора уже что-то добавить?</p>
-      </EmptyState>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+      >
+        <EmptyState>
+          <h3>Пока ничего нет</h3>
+          <p>Может пора уже что-то добавить?</p>
+        </EmptyState>
+      </motion.div>
     );
   };
 
   return (
-    <ThemeProvider theme={isDarkTheme ? darkTheme : lightTheme}>
+    <ThemeProvider theme={getTheme(currentTheme)}>
       <GlobalStyle />
       <AppContainer>
         <Header>
           <TabsRow>
-            <TopTab $active={activeTab === 'anime'} onClick={() => setActiveTab('anime')}><Film size={18}/>Аниме</TopTab>
-            <TopTab $active={activeTab === 'movie'} onClick={() => setActiveTab('movie')}><Play size={18}/>Фильмы</TopTab>
-            <TopTab $active={activeTab === 'series'} onClick={() => setActiveTab('series')}><Tv size={18}/>Сериалы</TopTab>
-            <TopTab $active={activeTab === 'manga'} onClick={() => setActiveTab('manga')}><BookOpen size={18}/>Манга</TopTab>
+            <TopTab 
+              $active={activeTab === 'anime'} 
+              onClick={() => setActiveTab('anime')}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
+              <Film size={18}/>Аниме
+            </TopTab>
+            <TopTab 
+              $active={activeTab === 'movie'} 
+              onClick={() => setActiveTab('movie')}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
+              <Play size={18}/>Фильмы
+            </TopTab>
+            <TopTab 
+              $active={activeTab === 'series'} 
+              onClick={() => setActiveTab('series')}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
+              <Tv size={18}/>Сериалы
+            </TopTab>
+            <TopTab 
+              $active={activeTab === 'manga'} 
+              onClick={() => setActiveTab('manga')}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
+              <BookOpen size={18}/>Манга
+            </TopTab>
           </TabsRow>
 
           <SearchContainer style={{ visibility: activeTab === 'statistics' ? 'hidden' : 'visible' }}>
@@ -845,7 +1078,21 @@ function App() {
               placeholder="Поиск по названию, тегам"
               value={searchQuery}
               onChange={(e)=>setSearchQuery(e.target.value)}
+              style={{ 
+                opacity: searchQuery !== debouncedSearchQuery ? 0.7 : 1,
+                transition: 'opacity 0.2s ease'
+              }}
             />
+            {searchQuery !== debouncedSearchQuery && (
+              <div style={{ 
+                width: '16px', 
+                height: '16px', 
+                border: '2px solid transparent',
+                borderTop: `2px solid ${getTheme(currentTheme).accent}`,
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+            )}
             {searchQuery && (
               <ClearSearchButton onClick={clearSearch} title="Очистить поиск">
                 <X size={16}/>
@@ -881,6 +1128,10 @@ function App() {
                      }} title="Управление бэкапами"><Database size={20}/></IconButton>
                    )}
 
+            <IconButton className="info" onClick={() => setShowThemeSelector(true)} title="Выбор темы">
+              <Palette size={20}/>
+            </IconButton>
+
                    {typeof window !== 'undefined' && window.electronAPI && (
                      <UpdateButtonComponent 
                        currentVersion={APP_VERSION}
@@ -888,29 +1139,25 @@ function App() {
                        downloadProgress={downloadProgress}
                        updateInfo={updateInfo}
                        onClick={() => setUpdateDialogOpen(true)}
-                       theme={isDarkTheme ? darkTheme : lightTheme}
+                       theme={getTheme(currentTheme)}
                      />
                    )}
-
-            <ThemeToggle onClick={toggleTheme} title={isDarkTheme ? 'Светлая тема' : 'Тёмная тема'}>
-              {isDarkTheme ? <Sun size={20}/> : <Moon size={20}/>}
-            </ThemeToggle>
           </HeaderControls>
         </Header>
 
         {/* Старая полоса вкладок убрана, но оставлена в коде на будущее */}
         <TabsContainer />
 
-        {activeTab !== 'statistics' && getAllTags().length > 0 && (
+        {activeTab !== 'statistics' && allTags.length > 0 && (
           <FiltersContainer>
             <FilterLabel><Filter size={16}/>Теги:</FilterLabel>
             <TagsContainer>
-              {getAllTags().slice(0, 10).map(({ tag, count }) => (
+              {allTags.slice(0, 10).map(({ tag, count }) => (
                 <TagChip key={tag} $selected={selectedTags.includes(tag)} onClick={()=>toggleTag(tag)} title={`${count} тайтл(ов)`}>
                   <Tag size={12} />{tag}<TagCount $selected={selectedTags.includes(tag)}>{count}</TagCount>
                 </TagChip>
               ))}
-              {getAllTags().length > 10 && <TagChip $selected={false}>+{getAllTags().length - 10} еще...</TagChip>}
+              {allTags.length > 10 && <TagChip $selected={false}>+{allTags.length - 10} еще...</TagChip>}
             </TagsContainer>
             {(selectedTags.length > 0 || searchQuery) && (
               <ClearFiltersButton onClick={clearFilters}><X size={14}/>Очистить</ClearFiltersButton>
@@ -919,25 +1166,48 @@ function App() {
         )}
 
         <MainContent>
-          <ContentArea>{content()}</ContentArea>
+          <ContentArea
+            key={activeTab}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+          >
+            <AnimatePresence mode="wait">
+              {content()}
+            </AnimatePresence>
+          </ContentArea>
         </MainContent>
 
       
 
-        <FloatingAddButton onClick={()=>setShowAddDialog(true)}>
-          <Plus size={20}/>Добавить
+        <FloatingAddButton 
+          onClick={()=>setShowAddDialog(true)}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          whileHover={{ scale: 1.1, y: -2 }}
+          whileTap={{ scale: 0.95 }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 300, 
+            damping: 20,
+            delay: 0.2 
+          }}
+          title="Добавить новый тайтл"
+        >
+          <Plus size={24}/>
         </FloatingAddButton>
 
         {showAddDialog && (
-          <AddDialog onClose={()=>setShowAddDialog(false)} onSave={addMediaItem} isDarkTheme={isDarkTheme} />
+          <AddDialog onClose={()=>setShowAddDialog(false)} onSave={addMediaItem} currentTheme={currentTheme} />
         )}
 
         {editingItem && (
-          <AddDialog item={editingItem} onClose={()=>setEditingItem(null)} onSave={saveEditedItem} isDarkTheme={isDarkTheme} />
+          <AddDialog item={editingItem} onClose={()=>setEditingItem(null)} onSave={saveEditedItem} currentTheme={currentTheme} />
         )}
 
         {ratingDialog.show && (
-          <RatingDialog item={ratingDialog.item} onClose={()=>setRatingDialog({show:false, item:null})} onSave={handleRatingSave} isDarkTheme={isDarkTheme} />
+          <RatingDialog item={ratingDialog.item} onClose={()=>setRatingDialog({show:false, item:null})} onSave={handleRatingSave} currentTheme={currentTheme} />
         )}
 
 
@@ -945,14 +1215,14 @@ function App() {
           <CloudSyncDialog open={cloudSyncDialogOpen} onClose={() => {
             console.log('App: Closing CloudSyncDialog');
             setCloudSyncDialogOpen(false);
-          }} darkMode={isDarkTheme} />
+          }} currentTheme={currentTheme} />
         )}
 
         {window.electronAPI && backupDialogOpen && (
           <BackupDialog open={backupDialogOpen} onClose={() => {
             console.log('App: Closing BackupDialog');
             setBackupDialogOpen(false);
-          }} darkMode={isDarkTheme} />
+          }} currentTheme={currentTheme} />
         )}
 
         {window.electronAPI && updateDialogOpen && (
@@ -962,7 +1232,7 @@ function App() {
               console.log('App: Closing UpdateDialog');
               setUpdateDialogOpen(false);
             }} 
-            darkMode={isDarkTheme}
+            currentTheme={currentTheme}
             currentVersion={APP_VERSION}
             updateInfo={updateInfo}
             updateStatus={updateStatus}
@@ -974,6 +1244,14 @@ function App() {
         )}
 
         {renderInstallPrompt()}
+
+        <ThemeSelector
+          isOpen={showThemeSelector}
+          onClose={() => setShowThemeSelector(false)}
+          currentTheme={currentTheme}
+          onThemeChange={handleThemeChange}
+          isDarkMode={currentTheme === 'dark'}
+        />
 
       </AppContainer>
     </ThemeProvider>

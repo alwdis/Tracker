@@ -198,6 +198,29 @@ function createWindow() {
     });
   }
   
+  // Добавляем обработчик ошибок в renderer процесс
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('Renderer failed to load:', errorCode, errorDescription, validatedURL);
+    showErrorPage(new Error(`Failed to load: ${errorDescription}`));
+  });
+  
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('Renderer finished loading');
+    // Проверяем, что React приложение загрузилось
+    mainWindow.webContents.executeJavaScript(`
+      // Проверяем, что React приложение загрузилось
+      setTimeout(() => {
+        const root = document.getElementById('root');
+        const loading = document.getElementById('pwa-loading');
+        
+        if (root && root.children.length === 0 && loading) {
+          console.error('React app did not load properly');
+          loading.innerHTML = '<div style="text-align: center; padding: 20px;"><h3>Ошибка загрузки приложения</h3><p>React приложение не загрузилось</p><button onclick="window.location.reload()" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Перезагрузить</button></div>';
+        }
+      }, 2000);
+    `).catch(err => console.error('Failed to execute JavaScript:', err));
+  });
+  
   // Отправляем диагностическую информацию в renderer (без автоматического открытия консоли)
   mainWindow.webContents.once('dom-ready', () => {
     mainWindow.webContents.send('debug-info', {
@@ -217,14 +240,58 @@ function createWindow() {
   registerDebugShortcuts();
 
   const startUrl = isDev ? 'http://localhost:3000' : `file://${path.join(__dirname, 'index.html')}`;
-  mainWindow.loadURL(startUrl).catch(err => {
-    console.error('Failed to load URL:', err);
+  console.log('=== URL LOADING DEBUG ===');
+  console.log('isDev:', isDev);
+  console.log('startUrl:', startUrl);
+  console.log('__dirname:', __dirname);
+  console.log('index.html path:', path.join(__dirname, 'index.html'));
+  console.log('index.html exists:', fsSync.existsSync(path.join(__dirname, 'index.html')));
+  
+  // Дополнительная проверка для упакованного приложения
+  if (!isDev) {
+    const possibleIndexPaths = [
+      path.join(__dirname, 'index.html'),
+      path.join(process.resourcesPath, 'app.asar', 'index.html'),
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'index.html'),
+      path.join(app.getAppPath(), 'index.html')
+    ];
+    
+    console.log('Checking possible index.html paths:');
+    possibleIndexPaths.forEach((p, i) => {
+      console.log(`  ${i + 1}. ${p} - exists: ${fsSync.existsSync(p)}`);
+    });
+    
+    // Находим существующий путь
+    const existingPath = possibleIndexPaths.find(p => fsSync.existsSync(p));
+    if (existingPath) {
+      const correctedUrl = `file://${existingPath}`;
+      console.log('Using corrected URL:', correctedUrl);
+      mainWindow.loadURL(correctedUrl).catch(err => {
+        console.error('Failed to load corrected URL:', err);
+        showErrorPage(err);
+      });
+    } else {
+      console.error('No index.html found in any expected location');
+      showErrorPage(new Error('index.html not found'));
+    }
+  } else {
+    mainWindow.loadURL(startUrl).catch(err => {
+      console.error('Failed to load URL:', err);
+      showErrorPage(err);
+    });
+  }
+  
+  function showErrorPage(err) {
     mainWindow.loadURL(`data:text/html;charset=utf-8,
       <html><body style="background:#1a1a1a;color:white;font-family:system-ui;padding:24px">
         <h2>Не удалось загрузить приложение</h2>
         <pre>${String(err).replace(/</g,'&lt;')}</pre>
+        <p>Попробуйте перезапустить приложение</p>
+        <p>Если проблема повторяется, обратитесь к разработчику</p>
       </body></html>`);
-  });
+  }
+  
+  console.log('========================');
 }
 
 // Функция для регистрации горячих клавиш отладки

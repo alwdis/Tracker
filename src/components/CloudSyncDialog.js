@@ -1,31 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import styled, { ThemeProvider } from 'styled-components';
 import { X, Cloud, CloudOff, Download, Upload, Settings, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { getTheme } from '../themes';
 
-// Теми для диалогов
-const lightTheme = {
-  background: '#ffffff',
-  surface: '#f8fafc',
-  text: '#334155',
-  textSecondary: '#64748b',
-  border: '#e2e8f0',
-  accent: '#667eea',
-  success: '#10b981',
-  warning: '#f59e0b',
-  error: '#ef4444'
-};
-
-const darkTheme = {
-  background: '#1a1a1a',
-  surface: '#2d2d2d',
-  text: '#ffffff',
-  textSecondary: 'rgba(255, 255, 255, 0.8)',
-  border: 'rgba(255, 255, 255, 0.1)',
-  accent: '#667eea',
-  success: '#22c55e',
-  warning: '#eab308',
-  error: '#ef4444'
-};
+// Теми удалены, теперь используем новую систему тем
 
 const Overlay = styled.div`
   position: fixed;
@@ -259,7 +237,7 @@ const Footer = styled.div`
   text-align: center;
 `;
 
-export default function CloudSyncDialog({ open, onClose, darkMode }) {
+export default function CloudSyncDialog({ open, onClose, currentTheme }) {
   const [provider, setProvider] = useState('yandex'); // только 'yandex'
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -383,7 +361,7 @@ export default function CloudSyncDialog({ open, onClose, darkMode }) {
   };
 
   return (
-    <ThemeProvider theme={darkMode ? darkTheme : lightTheme}>
+    <ThemeProvider theme={getTheme(currentTheme)}>
       <Overlay onClick={handleClose}>
         <Dialog onClick={e => e.stopPropagation()}>
           <Header>
