@@ -151,19 +151,30 @@ function createWindow() {
   // Определяем путь к иконке
   let iconPath;
   if (isDev) {
-    iconPath = path.join(__dirname, '../assets/icon.ico');
+    iconPath = path.join(__dirname, '../assets/icons/icon.ico');
   } else {
     // В production проверяем несколько возможных путей
     const possiblePaths = [
-      path.join(__dirname, 'assets/icon.ico'),
-      path.join(__dirname, '../assets/icon.ico'),
-      path.join(process.resourcesPath, 'assets/icon.ico')
+      path.join(__dirname, 'assets/icons/icon.ico'),
+      path.join(__dirname, '../assets/icons/icon.ico'),
+      path.join(process.resourcesPath, 'assets/icons/icon.ico'),
+      path.join(process.resourcesPath, 'app.asar.unpacked/assets/icons/icon.ico'),
+      path.join(app.getAppPath(), 'assets/icons/icon.ico'),
+      // Fallback to PNG if ICO not found
+      path.join(__dirname, 'assets/icon-256.png'),
+      path.join(__dirname, '../assets/icon-256.png'),
+      path.join(process.resourcesPath, 'assets/icon-256.png'),
+      path.join(process.resourcesPath, 'app.asar.unpacked/assets/icon-256.png'),
+      path.join(app.getAppPath(), 'assets/icon-256.png')
     ];
     
     iconPath = possiblePaths.find(p => fsSync.existsSync(p));
     if (!iconPath) {
       console.warn('Icon file not found, using default Electron icon');
+      console.warn('Checked paths:', possiblePaths);
       iconPath = undefined; // Используем иконку по умолчанию
+    } else {
+      console.log('Found icon at:', iconPath);
     }
   }
 
@@ -252,7 +263,7 @@ function registerDebugShortcuts() {
       dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: 'Информация о приложении',
-        message: `Tracker v${info.version}`,
+        message: `Media Tracker v${info.version}`,
         detail: `Платформа: ${info.platform}\nРежим разработки: ${info.isDev ? 'Да' : 'Нет'}\nУпакованное приложение: ${info.isPackaged ? 'Да' : 'Нет'}`,
         buttons: ['OK']
       });

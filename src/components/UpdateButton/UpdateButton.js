@@ -135,7 +135,7 @@ export default function UpdateButtonComponent({
         };
       case 'downloading':
         return {
-          text: `${downloadProgress || 0}%`,
+          text: `${(downloadProgress || 0).toFixed(2).padStart(5, '0')}%`,
           icon: <Download size={16} />,
           className: 'downloading',
           spinning: false
@@ -192,7 +192,7 @@ export default function UpdateButtonComponent({
       case 'available':
         return 'Нажмите для загрузки обновления';
       case 'downloading':
-        return `Загрузка обновления... ${downloadProgress || 0}%`;
+        return `Загрузка обновления... ${(downloadProgress || 0).toFixed(2).padStart(5, '0')}%`;
       case 'downloaded':
         return 'Нажмите для установки обновления';
       case 'not-available':

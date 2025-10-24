@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled, { ThemeProvider, keyframes } from 'styled-components';
 import { Star, Tag, X as XIcon, Image as ImageIcon, ExternalLink, Search, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { searchRU, getSeriesDetailsRU } from '../../lib/ruSources';
+import { searchRU, getSeriesDetailsRU, getMangaDetailsRU } from '../../lib/ruSources';
 
 // === анимации ===
 const fadeIn = keyframes`
@@ -381,7 +381,7 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
     if (!formData.title.trim()) return alert('Пожалуйста, введите название');
 
     if (formData.type !== 'movie' && !formData.totalEpisodes) {
-      return alert('Пожалуйста, укажите количество серий');
+      return alert('Пожалуйста, укажите количество серий/глав');
     }
 
     const itemData = {
@@ -412,7 +412,9 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
 
   const handleAddTag = (tag) => {
     const t = tag.trim().toLowerCase();
-    if (t && !formData.tags.includes(t)) setFormData((p) => ({ ...p, tags: [...p.tags, t] }));
+    if (t && !formData.tags.includes(t)) {
+      setFormData((p) => ({ ...p, tags: [...p.tags, t] }));
+    }
     setTagInput(''); setShowSuggestions(false);
   };
   const handleRemoveTag = (t) => setFormData((p) => ({ ...p, tags: p.tags.filter(x => x !== t) }));
@@ -441,9 +443,25 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
     handleChange('imageUrl', r.imageUrl || formData.imageUrl);
     if (r.year) handleChange('year', r.year);
 
+    // Автоматически добавляем теги на основе жанров (без ограничений)
+    if (r.tags && r.tags.length > 0) {
+      const existingTags = formData.tags || [];
+      const newTags = r.tags.filter(tag => !existingTags.includes(tag));
+      if (newTags.length > 0) {
+        handleChange('tags', [...existingTags, ...newTags]);
+      }
+    }
+
     // для сериалов TMDB — подтянем количество серий
     if (r.source === 'tmdb' && r.type === 'series') {
       const details = await getSeriesDetailsRU(r.id);
+      if (details?.totalEpisodes) handleChange('totalEpisodes', details.totalEpisodes);
+      if (details?.year && !r.year) handleChange('year', details.year);
+    }
+
+    // для манги Shikimori — подтянем количество глав
+    if (r.source === 'shikimori' && r.type === 'manga') {
+      const details = await getMangaDetailsRU(r.id);
       if (details?.totalEpisodes) handleChange('totalEpisodes', details.totalEpisodes);
       if (details?.year && !r.year) handleChange('year', details.year);
     }
@@ -453,16 +471,17 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
     setResults([]);
   };
 
-  const statusOptions = [
+  const getStatusOptions = (type) => [
     { value: 'planned', label: 'Запланировано' },
-    { value: 'watching', label: 'Смотрю' },
-    { value: 'completed', label: 'Просмотрено' },
+    { value: 'watching', label: type === 'manga' ? 'Читаю' : 'Смотрю' },
+    { value: 'completed', label: type === 'manga' ? 'Прочитано' : 'Просмотрено' },
     { value: 'dropped', label: 'Брошено' }
   ];
   const typeOptions = [
     { value: 'anime', label: 'Аниме' },
     { value: 'movie', label: 'Фильм' },
-    { value: 'series', label: 'Сериал' }
+    { value: 'series', label: 'Сериал' },
+    { value: 'manga', label: 'Манга' }
   ];
 
   return (
@@ -507,7 +526,7 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
                       <RText>
                         <RTitle>{r.title}</RTitle>
                         <RMeta>
-                          {(r.year ? `${r.year} • ` : '') + (r.type === 'anime' ? 'Аниме' : r.type === 'movie' ? 'Фильм' : 'Сериал')}
+                          {(r.year ? `${r.year} • ` : '') + (r.type === 'anime' ? 'Аниме' : r.type === 'movie' ? 'Фильм' : r.type === 'series' ? 'Сериал' : r.type === 'manga' ? 'Манга' : 'Неизвестно')}
                         </RMeta>
                       </RText>
                     </ResultItem>
@@ -554,7 +573,7 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
                 <Grow>
                   <Label>Статус</Label>
                   <Select value={formData.status} onChange={(e) => handleChange('status', e.target.value)}>
-                    {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {getStatusOptions(formData.type).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </Select>
                 </Grow>
               </Row>
@@ -562,18 +581,18 @@ function AddDialog({ item, onClose, onSave, isDarkTheme }) {
               {formData.type !== 'movie' && (
                 <Row>
                   <Grow>
-                    <Label>Всего серий</Label>
+                    <Label>{formData.type === 'manga' ? 'Всего глав' : 'Всего серий'}</Label>
                     <Input
                       type="number"
                       min="1"
                       value={formData.totalEpisodes}
                       onChange={(e) => handleChange('totalEpisodes', e.target.value)}
-                      placeholder="Всего серий"
+                      placeholder={formData.type === 'manga' ? 'Всего глав' : 'Всего серий'}
                     />
                   </Grow>
                   {(formData.status === 'watching' || formData.status === 'completed' || formData.status === 'dropped') && (
                     <Grow>
-                      <Label>Просмотрено серий</Label>
+                      <Label>{formData.type === 'manga' ? 'Прочитано глав' : 'Просмотрено серий'}</Label>
                       <Input
                         type="number"
                         min="0"

@@ -106,7 +106,7 @@ jobs:
             dist/*.AppImage
             dist/*.deb
             dist/*.rpm
-          name: Tracker ${{ github.ref_name }}
+          name: Media Tracker ${{ github.ref_name }}
           body: Correction and improvement
           generate_release_notes: false
           draft: false
@@ -140,6 +140,6 @@ jobs:
           done
           
           # Update release title and description, and set as latest
-          gh release edit "$TAG_NAME" --title "Tracker $TAG_NAME" --notes "Correction and improvement" --latest
+          gh release edit "$TAG_NAME" --title "Media Tracker $TAG_NAME" --notes "Correction and improvement" --latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

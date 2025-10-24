@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled, { createGlobalStyle, ThemeProvider } from 'styled-components';
-import { Plus, Film, Tv, Play, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Tag, Filter, RefreshCw, Cloud, Database } from 'lucide-react';
+import { Plus, Film, Tv, Play, BookOpen, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Tag, Filter, RefreshCw, Cloud, Database, Heart } from 'lucide-react';
 import { APP_VERSION } from './version';
 
 // Импортируем компоненты
@@ -80,10 +80,24 @@ const AppContainer = styled.div`
 `;
 
 const Header = styled.header`
-  display:grid; grid-template-columns:auto 1fr auto; align-items:center;
-  padding:16px 24px; background:${p=>p.theme.surface};
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: 16px 24px;
+  background: ${p => p.theme.surface};
   backdrop-filter: blur(20px);
-  border-bottom:1px solid ${p=>p.theme.border}; gap:16px;
+  border-bottom: 1px solid ${p => p.theme.border};
+  gap: 16px;
+  
+  @media (max-width: 768px) {
+    padding: 12px 16px;
+    gap: 12px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 10px 12px;
+    gap: 8px;
+  }
 `;
 
 const HeaderControls = styled.div`display:flex; align-items:center; gap:12px;`;
@@ -113,23 +127,74 @@ const OnlineDot = styled.div`
   animation:${p=>p.$isOnline ? 'pulse 2s infinite' : 'none'};
 `;
 
-const TabsRow = styled.div`display:flex; align-items:center; gap:12px;`;
+const TabsRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  
+  @media (max-width: 768px) {
+    gap: 8px;
+  }
+  
+  @media (max-width: 480px) {
+    gap: 6px;
+  }
+`;
+
 const TopTab = styled.button`
-  display:flex; align-items:center; gap:10px;
-  padding:10px 14px; border-radius:9999px;
-  border:1px solid ${p=>p.theme.border};
-  background:${p=>p.$active ? p.theme.surfaceSecondary : 'transparent'};
-  color:${p=>p.$active ? p.theme.text : p.theme.textSecondary};
-  font-weight:600; transition:.2s; &:hover{background:${p=>p.theme.surfaceSecondary};}
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 9999px;
+  border: 1px solid ${p => p.theme.border};
+  background: ${p => p.$active ? p.theme.surfaceSecondary : 'transparent'};
+  color: ${p => p.$active ? p.theme.text : p.theme.textSecondary};
+  font-weight: 600;
+  transition: .2s;
+  
+  &:hover {
+    background: ${p => p.theme.surfaceSecondary};
+  }
+  
+  @media (max-width: 768px) {
+    padding: 8px 12px;
+    gap: 8px;
+    font-size: 14px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 6px 10px;
+    gap: 6px;
+    font-size: 13px;
+  }
 `;
 
 const SearchContainer = styled.div`
-  display:flex; align-items:center;
-  background:${p=>p.theme.surfaceSecondary};
-  border:1px solid ${p=>p.theme.border};
-  border-radius:9999px; padding:8px 16px;
-  flex:1; min-width:320px; transition:all .2s ease;
-  &:focus-within{border-color:${p=>p.theme.accent}; background:${p=>p.theme.surface};}
+  display: flex;
+  align-items: center;
+  background: ${p => p.theme.surfaceSecondary};
+  border: 1px solid ${p => p.theme.border};
+  border-radius: 9999px;
+  padding: 8px 16px;
+  flex: 1;
+  min-width: 320px;
+  transition: all .2s ease;
+  
+  &:focus-within {
+    border-color: ${p => p.theme.accent};
+    background: ${p => p.theme.surface};
+  }
+  
+  @media (max-width: 768px) {
+    min-width: 280px;
+    padding: 6px 12px;
+  }
+  
+  @media (max-width: 480px) {
+    min-width: 200px;
+    padding: 6px 10px;
+  }
 `;
 const SearchInput = styled.input`
   background:none; border:none; color:${p=>p.theme.text};
@@ -189,19 +254,97 @@ const ClearFiltersButton = styled.button`
 
 const MainContent = styled.main`flex:1; display:flex; flex-direction:column; overflow:hidden;`;
 const ContentArea = styled.div`
-  flex:1; padding:clamp(16px, 2vw, 32px); overflow-y:auto; background:${p=>p.theme.background}; transition:all .3s ease;
+  flex: 1;
+  padding: clamp(16px, 2vw, 32px);
+  overflow-y: auto;
+  background: ${p => p.theme.background};
+  transition: all .3s ease;
+  
+  @media (max-width: 768px) {
+    padding: clamp(12px, 3vw, 20px);
+  }
+  
+  @media (max-width: 480px) {
+    padding: 12px;
+  }
 `;
 
-const StatusSection = styled.div`margin-bottom:40px;`;
+const StatusSection = styled.div`
+  margin-bottom: 40px;
+  
+  @media (max-width: 768px) {
+    margin-bottom: 32px;
+  }
+  
+  @media (max-width: 480px) {
+    margin-bottom: 24px;
+  }
+`;
+
 const StatusTitle = styled.h2`
-  font-size:20px; font-weight:700; margin-bottom:20px; color:${p=>p.theme.text}; display:flex; align-items:center; gap:10px;
-  &::after { content:''; flex:1; height:1px; background:${p=>p.theme.border}; margin-left:10px; }
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: ${p => p.theme.text};
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: ${p => p.theme.border};
+    margin-left: 10px;
+  }
+  
+  @media (max-width: 768px) {
+    font-size: 18px;
+    margin-bottom: 16px;
+    gap: 8px;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 16px;
+    margin-bottom: 12px;
+    gap: 6px;
+  }
 `;
 
 const MediaGrid = styled.div`
-  display:grid; grid-template-columns:repeat(auto-fill, minmax(420px, 1fr)); gap:24px; align-items:stretch;
-  @media (max-width:1100px){ grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); }
-  @media (max-width:768px){ grid-template-columns:1fr; }
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 24px;
+  align-items: stretch;
+  
+  @media (max-width: 1400px) {
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+  }
+  
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 18px;
+  }
+  
+  @media (max-width: 1000px) {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  
+  @media (max-width: 800px) {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  @media (max-width: 480px) {
+    gap: 12px;
+  }
 `;
 
 const EmptyState = styled.div`
@@ -340,12 +483,15 @@ const smartSearch = (items, query, selectedTags = []) => {
     return terms.every(term =>
       text.includes(term) ||
       (term === 'смотрю' && item.status === 'watching') ||
+      (term === 'читаю' && item.status === 'watching' && item.type === 'manga') ||
       (term === 'просмотрено' && item.status === 'completed') ||
+      (term === 'прочитано' && item.status === 'completed' && item.type === 'manga') ||
       (term === 'запланировано' && item.status === 'planned') ||
       (term === 'брошено' && item.status === 'dropped') ||
       (term === 'аниме' && item.type === 'anime') ||
       (term === 'фильм' && item.type === 'movie') ||
       (term === 'сериал' && item.type === 'series') ||
+      (term === 'манга' && item.type === 'manga') ||
       (term === 'оценка' && item.rating > 0) ||
       (term === 'без' && item.rating === 0) ||
       (/^\d+\/10$/.test(term) && item.rating === parseInt(term)) ||
@@ -549,7 +695,7 @@ function App() {
   const filteredByTab = media.filter(item => item.type === activeTab);
   const searchedMedia = smartSearch(filteredByTab, searchQuery, selectedTags);
   const favoritesApplied = showFavoritesOnly
-    ? searchedMedia.filter(item => (item.rating && item.rating >= 7) || (item.tags && item.tags.some(t => /любим|favorite|fav/i.test(t))))
+    ? searchedMedia.filter(item => item.favorite === true)
     : searchedMedia;
 
   const mediaByStatus = {
@@ -583,7 +729,7 @@ function App() {
         <div style={{display:'flex', alignItems:'center', gap:'12px', marginBottom:'12px'}}>
           <div style={{flexShrink:0, fontSize:'24px'}}>📱</div>
           <div style={{flex:1}}>
-            <div style={{fontWeight:600, marginBottom:4}}>Установить Tracker</div>
+            <div style={{fontWeight:600, marginBottom:4}}>Установить Media Tracker</div>
             <div style={{fontSize:12, opacity:.9}}>Добавьте приложение на главный экран для быстрого доступа</div>
           </div>
         </div>
@@ -688,6 +834,7 @@ function App() {
             <TopTab $active={activeTab === 'anime'} onClick={() => setActiveTab('anime')}><Film size={18}/>Аниме</TopTab>
             <TopTab $active={activeTab === 'movie'} onClick={() => setActiveTab('movie')}><Play size={18}/>Фильмы</TopTab>
             <TopTab $active={activeTab === 'series'} onClick={() => setActiveTab('series')}><Tv size={18}/>Сериалы</TopTab>
+            <TopTab $active={activeTab === 'manga'} onClick={() => setActiveTab('manga')}><BookOpen size={18}/>Манга</TopTab>
           </TabsRow>
 
           <SearchContainer style={{ visibility: activeTab === 'statistics' ? 'hidden' : 'visible' }}>
@@ -706,13 +853,10 @@ function App() {
             <SearchActionButton
               onClick={()=>setShowFavoritesOnly(v=>!v)}
               $active={showFavoritesOnly}
-              title={showFavoritesOnly ? 'Показывать всё' : 'Только избранное (рейтинг ≥ 7)'}
+              title={showFavoritesOnly ? 'Показывать всё' : 'Только избранное'}
               style={{marginLeft:4}}
             >
-              {/* звезда, закрашивается при активном фильтре */}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill={showFavoritesOnly?'currentColor':'none'} stroke="currentColor" strokeWidth="2">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-              </svg>
+              <Heart size={18} fill={showFavoritesOnly ? 'currentColor' : 'none'} />
             </SearchActionButton>
           </SearchContainer>
 

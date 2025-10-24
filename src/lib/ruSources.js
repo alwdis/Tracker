@@ -3,13 +3,185 @@
 const KP_KEY   = '2ea0ffd7-e197-4f7f-8ffb-7ef5b525474a';
 const TMDB_KEY = 'd13fd5e17ec6be5cdd603058af30ad8a';
 
+// === Маппинг жанров в теги ===
+const genreToTagsMap = {
+  // Аниме жанры (Shikimori)
+  'Action': ['боевик', 'приключения'],
+  'Adventure': ['приключения'],
+  'Comedy': ['комедия'],
+  'Drama': ['драма'],
+  'Fantasy': ['фэнтези'],
+  'Horror': ['ужасы'],
+  'Mystery': ['мистика', 'детектив'],
+  'Romance': ['романтика'],
+  'Sci-Fi': ['научная фантастика'],
+  'Slice of Life': ['повседневность'],
+  'Sports': ['спокон'],
+  'Supernatural': ['мистика'],
+  'Thriller': ['триллер'],
+  'School': ['школа'],
+  'Mecha': ['меха'],
+  'Mahou Shoujo': ['махо-седзе'],
+  'Seinen': ['сэйнэн'],
+  'Shoujo': ['сёдзё'],
+  'Shounen': ['сёнэн'],
+  'Kids': ['детский'],
+  'Isekai': ['исекай'],
+  'Martial Arts': ['боевые искусства'],
+  'Military': ['военный'],
+  'Police': ['полиция'],
+  'Psychological': ['психология'],
+  'Samurai': ['самураи'],
+  'Space': ['космос'],
+  'Super Power': ['суперсилы'],
+  'Vampire': ['вампиры'],
+  'Historical': ['история'],
+  'Magic': ['магия'],
+  'Parody': ['пародия'],
+  'Demons': ['демоны'],
+  'Game': ['игры'],
+  'Harem': ['гарем'],
+  'Josei': ['дзёсэй'],
+  'Kids': ['детский'],
+  'Music': ['музыка'],
+  'Mystery': ['мистика'],
+  'Parody': ['пародия'],
+  'Police': ['полиция'],
+  'Psychological': ['психология'],
+  'Romance': ['романтика'],
+  'Samurai': ['самураи'],
+  'School': ['школа'],
+  'Sci-Fi': ['научная фантастика'],
+  'Seinen': ['сэйнэн'],
+  'Shoujo': ['сёдзё'],
+  'Shoujo Ai': ['сёдзё-ай'],
+  'Shounen': ['сёнэн'],
+  'Shounen Ai': ['сёнэн-ай'],
+  'Slice of Life': ['повседневность'],
+  'Space': ['космос'],
+  'Sports': ['спокон'],
+  'Super Power': ['суперсилы'],
+  'Supernatural': ['мистика'],
+  'Thriller': ['триллер'],
+  'Vampire': ['вампиры'],
+  
+  // Кино жанры (Kinopoisk/TMDB) - русские названия
+  'фантастика': ['научная фантастика'],
+  'драма': ['драма'],
+  'комедия': ['комедия'],
+  'боевик': ['боевик'],
+  'триллер': ['триллер'],
+  'ужасы': ['ужасы'],
+  'детектив': ['детектив'],
+  'приключения': ['приключения'],
+  'романтика': ['романтика'],
+  'фэнтези': ['фэнтези'],
+  'мистика': ['мистика'],
+  'семейный': ['семейный'],
+  'мультфильм': ['мультфильм'],
+  'документальный': ['документальный'],
+  'биография': ['биография'],
+  'история': ['история'],
+  'военный': ['военный'],
+  'вестерн': ['вестерн'],
+  'криминал': ['криминал'],
+  'спорт': ['спорт'],
+  'музыка': ['музыка'],
+  'мюзикл': ['мюзикл'],
+  
+  // Дополнительные жанры Kinopoisk
+  'мелодрама': ['романтика'],
+  'нуар': ['детектив'],
+  'полицейский': ['криминал'],
+  'психологический': ['психология'],
+  'философский': ['философия'],
+  'эротика': ['эротика'],
+  'этнический': ['этнический'],
+  
+  // TMDB жанры (английские)
+  'Science Fiction': ['научная фантастика'],
+  'Action': ['боевик'],
+  'Adventure': ['приключения'],
+  'Comedy': ['комедия'],
+  'Drama': ['драма'],
+  'Fantasy': ['фэнтези'],
+  'Horror': ['ужасы'],
+  'Mystery': ['мистика'],
+  'Romance': ['романтика'],
+  'Thriller': ['триллер'],
+  'Crime': ['криминал'],
+  'Family': ['семейный'],
+  'Animation': ['мультфильм'],
+  'Documentary': ['документальный'],
+  'Biography': ['биография'],
+  'History': ['история'],
+  'War': ['военный'],
+  'Western': ['вестерн'],
+  'Sport': ['спорт'],
+  'Music': ['музыка'],
+  'Musical': ['мюзикл']
+};
+
+// Функция для получения тегов по жанрам
+export function getTagsFromGenres(genres) {
+  if (!genres || !Array.isArray(genres)) return [];
+  
+  const tags = new Set();
+  genres.forEach(genre => {
+    let genreName;
+    if (typeof genre === 'string') {
+      genreName = genre;
+    } else if (genre.name) {
+      genreName = genre.name;
+    } else if (genre.russian) {
+      genreName = genre.russian;
+    } else if (genre.genre) {
+      genreName = genre.genre;
+    }
+    
+    if (genreName) {
+      const mappedTags = genreToTagsMap[genreName] || genreToTagsMap[genreName.toLowerCase()];
+      if (mappedTags) {
+        mappedTags.forEach(tag => tags.add(tag));
+      }
+    }
+  });
+  
+  return Array.from(tags);
+}
+
 // ---------- Shikimori: аниме ----------
 export async function searchAnimeRU(query) {
   const url = `https://shikimori.one/api/animes?limit=10&order=popularity&search=${encodeURIComponent(query)}`;
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error('Shikimori: ошибка ответа');
   const list = await res.json();
-  return list.map((x) => ({
+  
+  // Получаем детальную информацию для каждого аниме, чтобы получить жанры
+  const detailedList = await Promise.all(
+    list.map(async (x) => {
+      try {
+        const detailRes = await fetch(`https://shikimori.one/api/animes/${x.id}`, { 
+          headers: { Accept: 'application/json' } 
+        });
+        if (detailRes.ok) {
+          const detail = await detailRes.json();
+          return {
+            ...x,
+            genres: detail.genres || []
+          };
+        }
+      } catch (e) {
+        console.warn('Failed to fetch details for anime', x.id, e);
+      }
+      return {
+        ...x,
+        genres: []
+      };
+    })
+  );
+  
+  return detailedList.map((x) => ({
     source: 'shikimori',
     id: x.id,
     type: 'anime',
@@ -21,6 +193,57 @@ export async function searchAnimeRU(query) {
       ? `https://shikimori.one${x.image.preview}`
       : (x.image?.original ? `https://shikimori.one${x.image.original}` : undefined),
     url: `https://shikimori.one${x.url || `/animes/${x.id}`}`,
+    genres: x.genres || [],
+    tags: getTagsFromGenres(x.genres || []),
+    _raw: x,
+  }));
+}
+
+// ---------- Shikimori: манга ----------
+export async function searchMangaRU(query) {
+  const url = `https://shikimori.one/api/mangas?limit=10&order=popularity&search=${encodeURIComponent(query)}`;
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error('Shikimori: ошибка ответа');
+  const list = await res.json();
+  
+  // Получаем детальную информацию для каждой манги, чтобы получить жанры
+  const detailedList = await Promise.all(
+    list.map(async (x) => {
+      try {
+        const detailRes = await fetch(`https://shikimori.one/api/mangas/${x.id}`, { 
+          headers: { Accept: 'application/json' } 
+        });
+        if (detailRes.ok) {
+          const detail = await detailRes.json();
+          return {
+            ...x,
+            genres: detail.genres || []
+          };
+        }
+      } catch (e) {
+        console.warn('Failed to fetch details for manga', x.id, e);
+      }
+      return {
+        ...x,
+        genres: []
+      };
+    })
+  );
+  
+  return detailedList.map((x) => ({
+    source: 'shikimori',
+    id: x.id,
+    type: 'manga',
+    title: x.russian || x.name || '',
+    originalTitle: x.name || '',
+    year: x.aired_on ? new Date(x.aired_on).getFullYear() : undefined,
+    totalEpisodes: x.chapters || undefined,
+    imageUrl: x.image?.preview
+      ? `https://shikimori.one${x.image.preview}`
+      : (x.image?.original ? `https://shikimori.one${x.image.original}` : undefined),
+    url: `https://shikimori.one${x.url || `/mangas/${x.id}`}`,
+    genres: x.genres || [],
+    tags: getTagsFromGenres(x.genres || []),
     _raw: x,
   }));
 }
@@ -51,6 +274,8 @@ export async function searchKinopoiskRU(query) {
     year: f.year || undefined,
     imageUrl: f.posterUrlPreview || f.posterUrl || undefined,
     url: `https://www.kinopoisk.ru/film/${f.filmId}/`,
+    genres: f.genres || [],
+    tags: getTagsFromGenres(f.genres || []),
     _raw: f,
   }));
 }
@@ -84,6 +309,25 @@ export async function getSeriesDetailsRU(id, sourceHint) {
   return null;
 }
 
+// ---------- Детали манги ----------
+export async function getMangaDetailsRU(id) {
+  try {
+    const res = await fetch(`https://shikimori.one/api/mangas/${id}`, { 
+      headers: { Accept: 'application/json' } 
+    });
+    if (res.ok) {
+      const manga = await res.json();
+      return {
+        totalEpisodes: manga.chapters || undefined,
+        year: manga.aired_on ? new Date(manga.aired_on).getFullYear() : undefined,
+      };
+    }
+  } catch (e) {
+    console.warn('Failed to fetch manga details', id, e);
+  }
+  return null;
+}
+
 // ---------- (опционально) TMDB поиск ----------
 async function tmdbSearch(kind, query) {
   if (!TMDB_KEY) return [];
@@ -101,6 +345,8 @@ async function tmdbSearch(kind, query) {
     year: (r.release_date || r.first_air_date) ? (r.release_date || r.first_air_date).slice(0, 4) : undefined,
     imageUrl: r.poster_path ? `https://image.tmdb.org/t/p/w500${r.poster_path}` : undefined,
     url: `https://www.themoviedb.org/${kind === 'movie' ? 'movie' : 'tv'}/${r.id}?language=ru-RU`,
+    genres: r.genre_ids || [],
+    tags: getTagsFromGenres(r.genre_ids || []),
     _raw: r,
   }));
 }
@@ -109,6 +355,7 @@ async function tmdbSearch(kind, query) {
 export async function searchRU(type, query) {
   if (!query || !query.trim()) return [];
   if (type === 'anime')  return searchAnimeRU(query);
+  if (type === 'manga')  return searchMangaRU(query);
 
   // приоритет — Kinopoisk
   const kp = await searchKinopoiskRU(query);

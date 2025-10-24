@@ -34,7 +34,7 @@ function generateReleaseNotes(version, type) {
   }
   
   // Используем простой шаблон
-  const releaseNotes = `# Tracker v${version} - ${releaseType}
+  const releaseNotes = `# Media Tracker v${version} - ${releaseType}
 
 ## 📝 Что изменилось:
 

@@ -175,7 +175,8 @@ function Statistics({ media, isDarkTheme }) {
   const typeCounts = {
     anime: media.filter(item => item.type === 'anime').length,
     movie: media.filter(item => item.type === 'movie').length,
-    series: media.filter(item => item.type === 'series').length
+    series: media.filter(item => item.type === 'series').length,
+    manga: media.filter(item => item.type === 'manga').length
   };
 
   const ratingDistribution = Array.from({ length: 10 }, (_, i) => ({
@@ -214,7 +215,7 @@ function Statistics({ media, isDarkTheme }) {
 
         <StatCard>
           <StatNumber>{totalEpisodes > 0 ? Math.round((watchedEpisodes / totalEpisodes) * 100) : 0}%</StatNumber>
-          <StatLabel>Прогресс просмотра</StatLabel>
+          <StatLabel>Прогресс просмотра/чтения</StatLabel>
         </StatCard>
 
         <StatCard>
@@ -237,8 +238,11 @@ function Statistics({ media, isDarkTheme }) {
               <div style={{ fontSize: '14px', color: isDarkTheme ? 'rgba(255, 255, 255, 0.6)' : '#64748b', marginBottom: '8px' }}>
                 Фильмы: {typeCounts.movie}
               </div>
-              <div style={{ fontSize: '14px', color: isDarkTheme ? 'rgba(255, 255, 255, 0.6)' : '#64748b' }}>
+              <div style={{ fontSize: '14px', color: isDarkTheme ? 'rgba(255, 255, 255, 0.6)' : '#64748b', marginBottom: '8px' }}>
                 Сериалы: {typeCounts.series}
+              </div>
+              <div style={{ fontSize: '14px', color: isDarkTheme ? 'rgba(255, 255, 255, 0.6)' : '#64748b' }}>
+                Манга: {typeCounts.manga}
               </div>
             </div>
           </ChartContent>
@@ -247,18 +251,18 @@ function Statistics({ media, isDarkTheme }) {
         <ChartCard>
           <ChartTitle>
             <Check size={18} />
-            Статусы просмотра
+            Статусы просмотра/чтения
           </ChartTitle>
           <ChartContent>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '14px', color: isDarkTheme ? 'rgba(255, 255, 255, 0.6)' : '#64748b', marginBottom: '8px' }}>
-                Смотрю: {statusCounts.watching}
+                Смотрю/Читаю: {statusCounts.watching}
               </div>
               <div style={{ fontSize: '14px', color: isDarkTheme ? 'rgba(255, 255, 255, 0.6)' : '#64748b', marginBottom: '8px' }}>
                 Запланировано: {statusCounts.planned}
               </div>
               <div style={{ fontSize: '14px', color: isDarkTheme ? 'rgba(255, 255, 255, 0.6)' : '#64748b', marginBottom: '8px' }}>
-                Просмотрено: {statusCounts.completed}
+                Просмотрено/Прочитано: {statusCounts.completed}
               </div>
               <div style={{ fontSize: '14px', color: isDarkTheme ? 'rgba(255, 255, 255, 0.6)' : '#64748b' }}>
                 Брошено: {statusCounts.dropped}
@@ -327,7 +331,7 @@ function Statistics({ media, isDarkTheme }) {
         fontSize: '14px'
       }}>
         <strong>{completionRate}%</strong> коллекции завершено • 
-        <strong> {watchedEpisodes}</strong> серий просмотрено • 
+        <strong> {watchedEpisodes}</strong> серий/глав просмотрено/прочитано • 
         <strong> {media.filter(item => !item.rating).length}</strong> без оценки
       </div>
     </StatisticsContainer>

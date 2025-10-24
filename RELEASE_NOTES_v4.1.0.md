@@ -1,4 +1,4 @@
-# Tracker v4.1.0 - ✨ Feature Release
+# Media Tracker v4.1.0 - ✨ Feature Release
 
 ## 🎯 Основные изменения:
 

@@ -45,7 +45,7 @@ async function createRelease() {
       releaseNotes = fs.readFileSync(releaseNotesPath, 'utf8');
     } else {
       // Fallback к простому шаблону
-      releaseNotes = `# Tracker v${version} - Release
+      releaseNotes = `# Media Tracker v${version} - Release
 
 ## 📝 Что изменилось:
 
@@ -59,7 +59,7 @@ async function createRelease() {
       owner: 'alwdis',
       repo: 'Tracker',
       tag_name: tagName,
-      name: `Tracker v${version} - Персональный трекер медиа-контента`,
+      name: `Media Tracker v${version} - Персональный трекер медиа-контента`,
       body: releaseNotes,
       draft: false,
       prerelease: false,
@@ -68,7 +68,7 @@ async function createRelease() {
     console.log(`Release created: ${release.data.html_url}`);
 
     // Загружаем установщик
-    const installerPath = path.join('dist', `Tracker-Setup-${version}.exe`);
+    const installerPath = path.join('dist', `Media Tracker-Setup-${version}.exe`);
     if (fs.existsSync(installerPath)) {
       console.log('Uploading installer...');
       
@@ -78,7 +78,7 @@ async function createRelease() {
         owner: 'alwdis',
         repo: 'Tracker',
         release_id: release.data.id,
-        name: `Tracker-Setup-${version}.exe`,
+        name: `Media Tracker-Setup-${version}.exe`,
         data: installerBuffer,
         headers: {
           'content-type': 'application/octet-stream',

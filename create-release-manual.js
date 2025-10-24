@@ -35,7 +35,7 @@ const options = {
   method: 'POST',
   headers: {
     'Authorization': `token ${GITHUB_TOKEN}`,
-    'User-Agent': 'Tracker-Release-Script',
+    'User-Agent': 'Media Tracker-Release-Script',
     'Content-Type': 'application/json',
     'Content-Length': Buffer.byteLength(postData)
   }

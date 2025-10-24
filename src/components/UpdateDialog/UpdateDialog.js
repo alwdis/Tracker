@@ -317,7 +317,7 @@ export default function UpdateDialog({ open, onClose, darkMode, currentVersion, 
       case 'available':
         return { text: `Доступно обновление ${updateInfo?.version}`, type: 'warning' };
       case 'downloading':
-        return { text: `Загрузка обновления... ${downloadProgress || 0}%`, type: 'info' };
+        return { text: `Загрузка обновления... ${(downloadProgress || 0).toFixed(2).padStart(5, '0')}%`, type: 'info' };
       case 'downloaded':
         return { text: 'Обновление готово к установке', type: 'success' };
       case 'not-available':
@@ -387,7 +387,7 @@ export default function UpdateDialog({ open, onClose, darkMode, currentVersion, 
                     <ProgressBar>
                       <ProgressFill progress={downloadProgress} />
                     </ProgressBar>
-                    <ProgressText>{downloadProgress || 0}% загружено</ProgressText>
+                    <ProgressText>{(downloadProgress || 0).toFixed(2).padStart(5, '0')}% загружено</ProgressText>
                   </>
                 )}
               </UpdateInfo>
