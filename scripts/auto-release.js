@@ -14,18 +14,32 @@ function updateVersion(type = 'patch') {
   
   console.log(`New version: ${version}`);
   
+  // Update src/version.js with the new version
+  console.log('Updating src/version.js...');
+  execSync('npm run update-version', { stdio: 'inherit' });
+  
   return version;
 }
 
 function createTagAndPush(version) {
   const tagName = `v${version}`;
   
+  console.log(`Committing version changes...`);
+  
+  // Add updated files
+  execSync('git add package.json package-lock.json src/version.js', { stdio: 'inherit' });
+  
+  // Commit version changes
+  execSync(`git commit -m "chore: bump version to ${version}"`, { stdio: 'inherit' });
+  
   console.log(`Creating tag ${tagName}...`);
   
-  // Create tag (no commit needed since version is already updated by npm)
+  // Create tag
   execSync(`git tag -a ${tagName} -m "Release ${tagName}"`, { stdio: 'inherit' });
   
-  // Push only the tag (this triggers release workflow)
+  // Push commit and tag
+  console.log('Pushing changes and tag...');
+  execSync('git push origin master', { stdio: 'inherit' });
   execSync(`git push origin ${tagName}`, { stdio: 'inherit' });
   
   console.log(`Tag ${tagName} created and pushed`);
