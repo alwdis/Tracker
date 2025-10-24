@@ -43,7 +43,7 @@ jobs:
           if (Test-Path "build") { Write-Host "`n--- build/ ---"; Get-ChildItem -Recurse -Force build | Select-Object FullName,Length | Format-Table -AutoSize }
 
       - name: Build & Publish (Windows)
-        run: npx electron-builder --win --publish always
+        run: npx electron-builder --win --publish never
 
       - name: List dist after build
         if: always()
