@@ -51,60 +51,22 @@ jobs:
         run: |
           if (Test-Path "dist") { Write-Host "`n--- dist/ ---"; Get-ChildItem -Recurse -Force dist | Select-Object FullName,Length | Format-Table -AutoSize }
 
-      - name: Check if release exists
-        id: check_release
-        shell: bash
-        run: |
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          echo "Checking for existing release: $TAG_NAME"
-          
-          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Release $TAG_NAME already exists"
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Release $TAG_NAME does not exist"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Create Release with Binaries
-        if: steps.check_release.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
           files: |
             dist/*.exe
             dist/*.yml
-            dist/*.zip
-            dist/*.tar.gz
-            dist/*.dmg
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.rpm
           name: Media Tracker ${{ github.ref_name }}
-          body: Correction and improvement
+          body: |
+            ## 🎉 Что нового в версии ${{ github.ref_name }}
+            
+            - Исправления и улучшения
+            - Обновления интерфейса
+            
+            **Дата релиза**: $(date '+%d.%m.%Y')
           generate_release_notes: false
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update Release with Binaries
-        if: steps.check_release.outputs.exists == 'true'
-        shell: bash
-        run: |
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          echo "Updating existing release: $TAG_NAME"
-          
-          # Upload all binary files to existing release
-          for file in dist/*.exe dist/*.yml dist/*.zip dist/*.tar.gz dist/*.dmg dist/*.AppImage dist/*.deb dist/*.rpm; do
-            if [ -f "$file" ]; then
-              echo "Uploading $file to release $TAG_NAME"
-              gh release upload "$TAG_NAME" "$file" --clobber
-            fi
-          done
-          
-          # Update release title and description (without --latest to avoid 422 error)
-          gh release edit "$TAG_NAME" --title "Media Tracker $TAG_NAME" --notes "Correction and improvement"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
