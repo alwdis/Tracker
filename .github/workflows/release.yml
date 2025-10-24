@@ -1,14 +1,12 @@
-name: Release (Windows - Smart Auto Release)
+name: Release (Windows)
 
 on:
   push:
-    branches: [ master ]
     tags:
       - 'v*'
-  pull_request:
 
 jobs:
-  build:
+  release:
     runs-on: windows-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -27,16 +25,10 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      # Smart install: npm ci on tags, npm install otherwise
-      - name: Install deps (CI on tags)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Install deps (CI)
         run: npm ci
 
-      - name: Install deps (Install on branches/PRs)
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        run: npm install
-
-      - name: Build renderer (if present)
+      - name: Build renderer
         run: npm run build
 
       - name: Print versions
@@ -50,22 +42,7 @@ jobs:
         run: |
           if (Test-Path "build") { Write-Host "`n--- build/ ---"; Get-ChildItem -Recurse -Force build | Select-Object FullName,Length | Format-Table -AutoSize }
 
-      # ✅ Package only (no publish) on branches/PRs
-      - name: Package app (no publish)
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        run: npx electron-builder --win
-
-      - name: Upload dist as artifact (branches/PRs)
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-win
-          path: dist/**
-          if-no-files-found: error
-
-      # 🚀 Build & publish only on tags v*
       - name: Build & Publish (Windows)
-        if: startsWith(github.ref, 'refs/tags/v')
         run: npx electron-builder --win --publish always
 
       - name: List dist after build
@@ -74,9 +51,7 @@ jobs:
         run: |
           if (Test-Path "dist") { Write-Host "`n--- dist/ ---"; Get-ChildItem -Recurse -Force dist | Select-Object FullName,Length | Format-Table -AutoSize }
 
-      # 🎯 Smart Auto-release: Create or Update release with binaries
       - name: Check if release exists
-        if: startsWith(github.ref, 'refs/tags/v')
         id: check_release
         shell: bash
         run: |
@@ -94,7 +69,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release with Binaries
-        if: startsWith(github.ref, 'refs/tags/v') && steps.check_release.outputs.exists == 'false'
+        if: steps.check_release.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
           files: |
@@ -114,18 +89,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set Release as Latest
-        if: startsWith(github.ref, 'refs/tags/v') && steps.check_release.outputs.exists == 'false'
-        shell: bash
-        run: |
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          echo "Setting release $TAG_NAME as latest"
-          gh release edit "$TAG_NAME" --latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Update Release with Binaries
-        if: startsWith(github.ref, 'refs/tags/v') && steps.check_release.outputs.exists == 'true'
+        if: steps.check_release.outputs.exists == 'true'
         shell: bash
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
@@ -139,7 +104,7 @@ jobs:
             fi
           done
           
-          # Update release title and description, and set as latest
-          gh release edit "$TAG_NAME" --title "Media Tracker $TAG_NAME" --notes "Correction and improvement" --latest
+          # Update release title and description (without --latest to avoid 422 error)
+          gh release edit "$TAG_NAME" --title "Media Tracker $TAG_NAME" --notes "Correction and improvement"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

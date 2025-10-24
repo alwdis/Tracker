@@ -1,49 +1,6 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 
-function getChangesSinceLastTag() {
-  try {
-    // Get last tag
-    const lastTag = execSync('git describe --tags --abbrev=0', { encoding: 'utf8' }).trim();
-    
-    // Get commits since last tag (exclude Release commits)
-    const commits = execSync(`git log ${lastTag}..HEAD --oneline --pretty=format:"- %s" --grep="^Release" --invert-grep`, { encoding: 'utf8' });
-    
-    return commits.trim();
-  } catch (error) {
-    // If no tags, get recent commits (exclude Release commits)
-    const commits = execSync('git log --oneline -10 --pretty=format:"- %s" --grep="^Release" --invert-grep', { encoding: 'utf8' });
-    return commits.trim();
-  }
-}
-
-function generateReleaseNotes(version, type) {
-  const changes = getChangesSinceLastTag();
-  
-  let releaseType = '';
-  switch (type) {
-    case 'major':
-      releaseType = '🚀 Major Release';
-      break;
-    case 'minor':
-      releaseType = '✨ Feature Release';
-      break;
-    case 'patch':
-      releaseType = '🐛 Bugfix Release';
-      break;
-  }
-  
-  // Используем простой шаблон
-  const releaseNotes = `# Media Tracker v${version} - ${releaseType}
-
-## 📝 Что изменилось:
-
-- ${changes || 'Обновления и улучшения'}
-
-**Дата релиза**: ${new Date().toLocaleDateString('ru-RU')}`;
-  
-  return releaseNotes;
-}
 
 function updateVersion(type = 'patch') {
   console.log(`Updating ${type} version...`);
@@ -56,13 +13,6 @@ function updateVersion(type = 'patch') {
   const version = packageJson.version;
   
   console.log(`New version: ${version}`);
-  
-  // Generate release notes
-  const releaseNotes = generateReleaseNotes(version, type);
-  const releaseNotesPath = `RELEASE_NOTES_v${version}.md`;
-  
-  fs.writeFileSync(releaseNotesPath, releaseNotes);
-  console.log(`Created release notes: ${releaseNotesPath}`);
   
   return version;
 }
