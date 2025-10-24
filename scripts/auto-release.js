@@ -27,9 +27,8 @@ function createTagAndPush(version) {
   execSync(`git commit -m "Release ${tagName}"`, { stdio: 'inherit' });
   execSync(`git tag -a ${tagName} -m "Release ${tagName}"`, { stdio: 'inherit' });
   
-  // Push changes and tag
-  execSync(`git push`, { stdio: 'inherit' });
-  execSync(`git push origin ${tagName}`, { stdio: 'inherit' });
+  // Push changes and tag together
+  execSync(`git push origin master ${tagName}`, { stdio: 'inherit' });
   
   console.log(`Tag ${tagName} created and pushed`);
   console.log('GitHub Actions will now build and create the release automatically!');
