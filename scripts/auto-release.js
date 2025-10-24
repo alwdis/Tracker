@@ -5,8 +5,8 @@ const fs = require('fs');
 function updateVersion(type = 'patch') {
   console.log(`Updating ${type} version...`);
   
-  // Update version in package.json
-  execSync(`npm version ${type}`, { stdio: 'inherit' });
+  // Update version in package.json without creating tag
+  execSync(`npm version ${type} --no-git-tag-version`, { stdio: 'inherit' });
   
   // Get new version
   const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));

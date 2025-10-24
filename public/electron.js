@@ -311,7 +311,7 @@ app.on('ready', async () => {
         app.setAppUserModelId('com.alwdis.tracker');
       }
 
-      autoUpdater.autoDownload = true;
+      autoUpdater.autoDownload = false;
       autoUpdater.logger = require('electron-log');
       autoUpdater.logger.transports.file.level = 'info';
       
@@ -458,6 +458,52 @@ ipcMain.handle('check-for-updates', async () => {
     }
   } else {
     throw new Error('Auto-updater not available');
+  }
+});
+
+// ===== Download update =====
+ipcMain.handle('download-update', async () => {
+  if (autoUpdater) {
+    console.log('Manual download update requested...');
+    try {
+      // Проверяем, есть ли доступное обновление
+      const result = await autoUpdater.checkForUpdates();
+      if (result && result.updateInfo) {
+        console.log('Update available, starting download...');
+        // Запускаем загрузку вручную
+        await autoUpdater.downloadUpdate();
+        return { success: true, message: 'Download started' };
+      } else {
+        return { success: false, error: 'No update available' };
+      }
+    } catch (error) {
+      console.error('Download update failed:', error);
+      return { success: false, error: error.message };
+    }
+  } else {
+    return { success: false, error: 'Auto-updater not available' };
+  }
+});
+
+// ===== Install update =====
+ipcMain.handle('install-update', async () => {
+  if (autoUpdater) {
+    console.log('Manual install update requested...');
+    try {
+      // Проверяем, загружено ли обновление
+      if (autoUpdater.downloadedUpdateInfo) {
+        console.log('Installing update...');
+        autoUpdater.quitAndInstall();
+        return { success: true, message: 'Installation started' };
+      } else {
+        return { success: false, error: 'No downloaded update available' };
+      }
+    } catch (error) {
+      console.error('Install update failed:', error);
+      return { success: false, error: error.message };
+    }
+  } else {
+    return { success: false, error: 'Auto-updater not available' };
   }
 });
 

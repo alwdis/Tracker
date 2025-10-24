@@ -64,7 +64,6 @@ jobs:
             - Исправления и улучшения
             - Обновления интерфейса
             
-            **Дата релиза**: $(date '+%d.%m.%Y')
           generate_release_notes: false
           draft: false
           prerelease: false

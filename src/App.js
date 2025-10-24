@@ -661,7 +661,8 @@ function App() {
       const result = await window.electronAPI.downloadUpdate();
       
       if (result.success) {
-        setUpdateStatus('downloaded');
+        // Статус будет обновлен через событие 'update-downloaded'
+        console.log('Download started successfully');
       } else {
         setUpdateStatus('error');
         console.error('Download error:', result.error);
