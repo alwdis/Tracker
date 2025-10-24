@@ -688,38 +688,39 @@ function App() {
             <TopTab $active={activeTab === 'anime'} onClick={() => setActiveTab('anime')}><Film size={18}/>Аниме</TopTab>
             <TopTab $active={activeTab === 'movie'} onClick={() => setActiveTab('movie')}><Play size={18}/>Фильмы</TopTab>
             <TopTab $active={activeTab === 'series'} onClick={() => setActiveTab('series')}><Tv size={18}/>Сериалы</TopTab>
-            <TopTab $active={activeTab === 'statistics'} onClick={() => setActiveTab('statistics')}><BarChart3 size={18}/>Статистика</TopTab>
           </TabsRow>
 
-          {activeTab !== 'statistics' && (
-            <SearchContainer>
-              <SearchIcon size={20}/>
-              <SearchInput
-                type="text"
-                placeholder="Поиск по названию, тегам"
-                value={searchQuery}
-                onChange={(e)=>setSearchQuery(e.target.value)}
-              />
-              {searchQuery && (
-                <ClearSearchButton onClick={clearSearch} title="Очистить поиск">
-                  <X size={16}/>
-                </ClearSearchButton>
-              )}
-              <SearchActionButton
-                onClick={()=>setShowFavoritesOnly(v=>!v)}
-                $active={showFavoritesOnly}
-                title={showFavoritesOnly ? 'Показывать всё' : 'Только избранное (рейтинг ≥ 7)'}
-                style={{marginLeft:4}}
-              >
-                {/* звезда, закрашивается при активном фильтре */}
-                <svg width="18" height="18" viewBox="0 0 24 24" fill={showFavoritesOnly?'currentColor':'none'} stroke="currentColor" strokeWidth="2">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-              </SearchActionButton>
-            </SearchContainer>
-          )}
+          <SearchContainer style={{ visibility: activeTab === 'statistics' ? 'hidden' : 'visible' }}>
+            <SearchIcon size={20}/>
+            <SearchInput
+              type="text"
+              placeholder="Поиск по названию, тегам"
+              value={searchQuery}
+              onChange={(e)=>setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <ClearSearchButton onClick={clearSearch} title="Очистить поиск">
+                <X size={16}/>
+              </ClearSearchButton>
+            )}
+            <SearchActionButton
+              onClick={()=>setShowFavoritesOnly(v=>!v)}
+              $active={showFavoritesOnly}
+              title={showFavoritesOnly ? 'Показывать всё' : 'Только избранное (рейтинг ≥ 7)'}
+              style={{marginLeft:4}}
+            >
+              {/* звезда, закрашивается при активном фильтре */}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill={showFavoritesOnly?'currentColor':'none'} stroke="currentColor" strokeWidth="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </SearchActionButton>
+          </SearchContainer>
 
           <HeaderControls>
+
+                   <IconButton className="info" onClick={() => setActiveTab('statistics')} title="Статистика">
+                     <BarChart3 size={20}/>
+                   </IconButton>
 
                    {typeof window !== 'undefined' && window.electronAPI && (
                      <IconButton className="info" onClick={() => {
