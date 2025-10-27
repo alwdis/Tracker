@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { Trash2, Edit3, Plus, Minus, Star, ExternalLink, Tag as TagIcon, MessageCircle, AlertTriangle, X, Heart } from 'lucide-react';
+import { Trash2, Edit3, Plus, Minus, Star, ExternalLink, Tag as TagIcon, AlertTriangle, X, Heart, Play, CheckCircle, Clock, Calendar } from 'lucide-react';
+import { checkTitleStatus } from '../lib/ruSources';
 
 /** ============== Layout constants ============== */
 // Адаптивные размеры для разных экранов
@@ -97,6 +98,8 @@ const Grid = styled.div`
   grid-template-columns: ${p => p.$sizes?.posterWidth || 100}px 1fr;
   gap: ${p => p.$sizes?.gap || 14}px;
   padding: ${p => p.$sizes?.padding || 14}px;
+  align-items: stretch;
+  height: 100%;
   > * { min-width: 0; }
 
   @media (max-width: 1200px) {
@@ -130,9 +133,17 @@ const Poster = styled.div`
   overflow: hidden;
   border: 1px solid ${p => p.theme.border};
   background: linear-gradient(180deg, rgba(148,163,184,.18), rgba(148,163,184,.08));
-  display: grid; place-items: center;
+  display: grid; 
+  place-items: center;
+  align-self: start;
 
-  img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  img { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover; 
+    object-position: center;
+    display: block; 
+  }
 
   &::after {
     content: attr(data-empty);
@@ -146,17 +157,9 @@ const Poster = styled.div`
 const Right = styled.div`
   display: flex;
   flex-direction: column;
-  height: 100%;
   min-width: 0;
-  gap: 6px;
-  
-  @media (max-width: 560px) {
-    gap: 5px;
-  }
-
-  @media (max-width: 400px) {
-    gap: 4px;
-  }
+  height: 100%;
+  overflow: hidden;
 `;
 
 const MainContent = styled.div`
@@ -164,6 +167,7 @@ const MainContent = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-height: 0;
 `;
 
 const Header = styled.div`
@@ -233,7 +237,11 @@ const Meta = styled.div`
   font-size: ${p => p.$sizes?.fontSize?.meta || 12}px;
   flex-wrap: wrap;
   
-  span + span::before {
+  span[data-no-bullet]::before {
+    content: none !important;
+  }
+  
+  span:not(:first-child):not([data-no-bullet])::before {
     content: "•";
     margin: 0 6px;
     color: ${p => p.theme.textSecondary};
@@ -259,18 +267,92 @@ const StatusDot = styled.span`
   background: ${p => p.$color || '#9ca3af'};
 `;
 
+const ReleaseStatusBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  
+  ${props => props.$status === 'ongoing' && `
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+  `}
+  
+  ${props => props.$status === 'completed' && `
+    background: rgba(102, 126, 234, 0.15);
+    color: #667eea;
+    border: 1px solid rgba(102, 126, 234, 0.3);
+  `}
+  
+  ${props => props.$status === 'anons' && `
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+  `}
+  
+  ${props => props.$status === 'released' && `
+    background: rgba(156, 163, 175, 0.15);
+    color: #9ca3af;
+    border: 1px solid rgba(156, 163, 175, 0.3);
+  `}
+`;
+
 const StatusSelect = styled.select`
-  background: ${p => p.theme.surfaceSecondary};
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: linear-gradient(135deg, ${p => p.theme.background} 0%, ${p => p.theme.surfaceSecondary} 100%);
   color: ${p => p.theme.text};
   border: 1px solid ${p => p.theme.border};
-  border-radius: 10px;
-  padding: 6px 10px;
-  font-size: 13px;
-  font-weight: 700;
+  border-radius: 6px;
+  padding: 6px 30px 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
   outline: none;
-  transition: border-color .15s ease, background-color .15s ease;
-  &:focus { border-color: ${p => p.theme.accent}; background: ${p => p.theme.surface}; }
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  min-width: 120px;
+  
+  /* Custom arrow */
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  
+  &:hover {
+    background: linear-gradient(135deg, ${p => p.theme.surface} 0%, ${p => p.theme.accent} 100%);
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  }
+  
+  &:focus { 
+    border-color: ${p => p.theme.accent}; 
+    background: linear-gradient(135deg, ${p => p.theme.surface} 0%, ${p => p.theme.accent} 100%);
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    color: white;
+  }
+  
+  option {
+    background: ${p => p.theme.surface};
+    color: ${p => p.theme.text};
+  }
+  
+  @media (max-width: 400px) {
+    padding: 4px 28px 4px 8px;
+    font-size: 10px;
+    min-width: 100px;
+  }
 `;
+
 
 /** ============== Rating ============== */
 const RatingRow = styled.div`
@@ -397,40 +479,27 @@ const Round = styled(motion.button)`
 
 /** ============== Bottom actions / tags ============== */
 const BottomRow = styled.div`
-  display: grid;
-  grid-template-columns: 1fr auto;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  column-gap: 10px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid ${p => p.theme.border};
+  flex-shrink: 0;
+  gap: 10px;
   
   @media (max-width: 400px) {
-    grid-template-columns: 1fr;
-    row-gap: 8px;
-    column-gap: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding-top: 10px;
   }
 `;
 
-const Tags = styled.div`
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0;
-  
-  @media (max-width: 400px) {
-    gap: 6px;
-  }
-`;
-
-const TagChip = styled.span`
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 700;
-  background: ${p => p.theme.surface}; border: 1px solid ${p => p.theme.border}; color: ${p => p.theme.text};
-  
-  @media (max-width: 400px) {
-    font-size: 11px;
-    padding: 2px 6px;
-    gap: 4px;
-  }
-`;
 
 const IconActions = styled.div`
   display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;
+  position: relative;
   
   @media (max-width: 400px) {
     gap: 6px;
@@ -627,6 +696,7 @@ const LazyImage = React.memo(({ src, alt, ...props }) => {
             width: '100%',
             height: '100%',
             objectFit: 'cover',
+            objectPosition: 'center',
             display: 'block'
           }}
           {...props}
@@ -643,13 +713,57 @@ const MediaCard = React.memo(({ item, onUpdate, onDelete, onEdit, currentTheme }
   const [hoverRating, setHoverRating] = useState(0);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [screenWidth, setScreenWidth] = useState(window.innerWidth);
-
+  const [releaseStatus, setReleaseStatus] = useState(null);
+  const [isCheckingReleaseStatus, setIsCheckingReleaseStatus] = useState(false);
   // Отслеживаем изменение размера экрана
   React.useEffect(() => {
     const handleResize = () => setScreenWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Проверяем статус выпуска для аниме и манги
+  React.useEffect(() => {
+    const checkReleaseStatus = async () => {
+      // Проверяем только аниме и мангу, и только если есть Shikimori ID в URL
+      const shikimoriUrl = item.apiUrl || item.url; // Используем apiUrl или url
+      
+      if ((item.type === 'anime' || item.type === 'manga') && shikimoriUrl && shikimoriUrl.includes('shikimori.one')) {
+        const shikimoriId = extractShikimoriId(shikimoriUrl);
+        
+        if (shikimoriId) {
+          setIsCheckingReleaseStatus(true);
+          try {
+            const status = await checkTitleStatus(shikimoriId, item.type);
+            setReleaseStatus(status);
+          } catch (error) {
+            console.error('Error checking release status:', error);
+          } finally {
+            setIsCheckingReleaseStatus(false);
+          }
+        }
+      }
+    };
+
+    checkReleaseStatus();
+  }, [item.apiUrl, item.url, item.type]);
+
+  // Функция для извлечения ID из URL Shikimori
+  const extractShikimoriId = (url) => {
+    const match = url.match(/shikimori\.one\/(?:animes|mangas)\/(\d+)/);
+    return match ? parseInt(match[1]) : null;
+  };
+
+  // Функции для отображения статуса выпуска
+  const getReleaseStatusText = (status) => {
+    switch(status) {
+      case 'ongoing': return 'Выходит';
+      case 'completed': return 'Завершено';
+      case 'anons': return 'Анонс';
+      case 'released': return 'Вышло';
+      default: return '';
+    }
+  };
 
   // Получаем адаптивные размеры
   const cardSizes = getCardSizes(screenWidth);
@@ -681,6 +795,20 @@ const MediaCard = React.memo(({ item, onUpdate, onDelete, onEdit, currentTheme }
 
   const handleDeleteCancel = useCallback(() => {
     setShowDeleteConfirmation(false);
+  }, []);
+
+  const handleStatusChange = useCallback((newStatus) => {
+    onUpdate?.(item.id, { status: newStatus });
+  }, [onUpdate, item.id]);
+
+  const getStatusLabel = useCallback((status, type) => {
+    switch (status) {
+      case 'planned': return 'Запланировано';
+      case 'watching': return type === 'manga' ? 'Читаю' : 'Смотрю';
+      case 'completed': return type === 'manga' ? 'Прочитано' : 'Просмотрено';
+      case 'dropped': return 'Брошено';
+      default: return 'Неизвестно';
+    }
   }, []);
 
   const inc = useCallback(() => {
@@ -744,15 +872,64 @@ const MediaCard = React.memo(({ item, onUpdate, onDelete, onEdit, currentTheme }
                     {item.totalEpisodes
                       ? <span>{item.watchedEpisodes || 0}/{item.totalEpisodes} {item.type === 'manga' ? 'гл.' : 'эп.'}</span>
                       : item.type === 'movie' && <span>Фильм</span>}
-                    <span><StatusDot $color={statusColor(item.status)} />{getStatusLabel(item.status, item.type)}</span>
+                    {item.apiRating && (
+                      <span style={{ color: '#f59e0b', fontWeight: 700 }}>
+                        <Star size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '2px' }} />
+                        {item.apiRating}
+                      </span>
+                    )}
                   </Meta>
-                  <StatusSelect value={item.status} onChange={(e)=>onUpdate?.(item.id,{status:e.target.value})}>
-                    <option value="planned">Запланировано</option>
-                    <option value="watching">{item.type === 'manga' ? 'Читаю' : 'Смотрю'}</option>
-                    <option value="completed">{item.type === 'manga' ? 'Прочитано' : 'Просмотрено'}</option>
-                    <option value="dropped">Брошено</option>
-                  </StatusSelect>
                 </MetaRow>
+
+                <MetaRow>
+                  <Meta $sizes={cardSizes}>
+                    <span>{getStatusLabel(item.status, item.type)}</span>
+                    {releaseStatus && (
+                      <ReleaseStatusBadge $status={releaseStatus.status} data-no-bullet>
+                        {getReleaseStatusText(releaseStatus.status)}
+                      </ReleaseStatusBadge>
+                    )}
+                    {isCheckingReleaseStatus && (
+                      <span style={{ 
+                        fontSize: '10px', 
+                        color: '#9ca3af', 
+                        marginLeft: '8px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        Проверка...
+                      </span>
+                    )}
+                  </Meta>
+                </MetaRow>
+
+                {showProgress && (
+                  <ProgressRow>
+                    <Bar title={`${progress}%`}>
+                      <Fill $w={progress} />
+                    </Bar>
+                    <Pct>{progress}%</Pct>
+                    <div style={{ display:'flex', gap:8 }}>
+                      <Round 
+                        onClick={dec} 
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                      >
+                        <Minus size={14} />
+                      </Round>
+                      <Round 
+                        onClick={inc} 
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                      >
+                        <Plus size={14} />
+                      </Round>
+                    </div>
+                  </ProgressRow>
+                )}
 
                 <RatingRow onMouseLeave={() => setHoverRating(0)}>
                   <Stars>
@@ -779,52 +956,31 @@ const MediaCard = React.memo(({ item, onUpdate, onDelete, onEdit, currentTheme }
                   <RatingText $sizes={cardSizes}>{(hoverRating || item.rating) ? `${hoverRating || item.rating}/10` : 'Без оценки'}</RatingText>
                 </RatingRow>
 
-                {showProgress && (
-                  <ProgressRow>
-                    <Bar title={`${progress}%`}>
-                      <Fill $w={progress} />
-                    </Bar>
-                    <Pct>{progress}%</Pct>
-                    <div style={{ display:'flex', gap:8 }}>
-                      <Round 
-                        onClick={dec} 
-                        title="−1"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      >
-                        <Minus size={14} />
-                      </Round>
-                      <Round 
-                        onClick={inc} 
-                        title="+1"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      >
-                        <Plus size={14} />
-                      </Round>
-                    </div>
-                  </ProgressRow>
-                )}
               </MainContent>
 
               <BottomRow>
-                {item.tags?.length > 0 || item.comment ? (
-                  <Tags>
-                    {item.tags?.slice(0, 1).map((t, i) => (
-                      <TagChip key={i}><TagIcon size={10} /> {t}</TagChip>
-                    ))}
-                    {item.tags && item.tags.length > 1 && <TagChip>+{item.tags.length - 1}</TagChip>}
-                    {item.comment && (
-                      <TagChip title={item.comment}>
-                        <MessageCircle size={10} /> заметка
-                      </TagChip>
-                    )}
-                  </Tags>
-                ) : <div />}
-
+                {(item.tags?.length > 0 || item.comment) && (
+                  <GhostBtn 
+                    title={item.tags?.join(', ')}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <TagIcon size={14} />
+                    <span style={{ marginLeft: '2px' }}>{(item.tags?.length || 0) + (item.comment ? 1 : 0)}</span>
+                  </GhostBtn>
+                )}
                 <IconActions>
+                  <StatusSelect
+                    value={item.status}
+                    onChange={(e) => {
+                      handleStatusChange(e.target.value);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="planned">Запланировано</option>
+                    <option value="watching">{item.type === 'manga' ? 'Читаю' : 'Смотрю'}</option>
+                    <option value="completed">{item.type === 'manga' ? 'Прочитано' : 'Просмотрено'}</option>
+                    <option value="dropped">Брошено</option>
+                  </StatusSelect>
                   <GhostBtn 
                     onClick={() => onEdit?.(item)} 
                     title="Редактировать"

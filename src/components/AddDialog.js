@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import styled, { ThemeProvider, keyframes } from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Tag, X as XIcon, Image as ImageIcon, ExternalLink, Search, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { searchRU, getSeriesDetailsRU, getMangaDetailsRU } from '../lib/ruSources';
+import { searchRU, getSeriesDetailsRU, getMangaDetailsRU, checkTitleStatus } from '../lib/ruSources';
 import { getTheme } from '../themes';
+import TitleStatusIndicator from './TitleStatusIndicator';
 
 // === анимации ===
 const fadeIn = keyframes`
@@ -370,9 +371,11 @@ function AddDialog({ item, onClose, onSave, currentTheme }) {
     totalEpisodes: '',
     watchedEpisodes: 0,
     url: '',
+    apiUrl: '', // Ссылка из API (не отображается пользователю)
     imageUrl: '',
     year: '',
     rating: 0,
+    apiRating: 0, // Оценка из API
     comment: '',
     tags: []
   });
@@ -386,9 +389,16 @@ function AddDialog({ item, onClose, onSave, currentTheme }) {
   const [results, setResults] = useState([]);
   const [errorRU, setErrorRU] = useState('');
   const [isResultSelected, setIsResultSelected] = useState(false);
+  const [isEditingMode, setIsEditingMode] = useState(false); // Флаг редактирования
+  
+  // проверка статуса
+  const [titleStatus, setTitleStatus] = useState(null);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
 
   useEffect(() => {
     if (item) {
+      setIsEditingMode(true);
+      setIsResultSelected(true); // При редактировании сразу помечаем, что результат выбран
       setFormData({
         title: item.title,
         type: item.type,
@@ -396,14 +406,28 @@ function AddDialog({ item, onClose, onSave, currentTheme }) {
         totalEpisodes: item.totalEpisodes || '',
         watchedEpisodes: item.watchedEpisodes || 0,
         url: item.url || '',
+        apiUrl: item.apiUrl || '', // Ссылка из API
         imageUrl: item.imageUrl || '',
         year: item.year || '',
         rating: item.rating || 0,
         comment: item.comment || '',
         tags: item.tags || []
       });
+    } else {
+      setIsEditingMode(false);
+      setIsResultSelected(false);
     }
   }, [item]);
+
+  // Автоматическое заполнение просмотренных серий при статусе "Просмотрено"
+  useEffect(() => {
+    if (formData.status === 'completed' && formData.type !== 'movie' && formData.totalEpisodes) {
+      const total = parseInt(formData.totalEpisodes);
+      if (formData.watchedEpisodes !== total) {
+        setFormData((p) => ({ ...p, watchedEpisodes: total }));
+      }
+    }
+  }, [formData.status, formData.totalEpisodes, formData.type]);
 
   // === автопоиск с дебаунсом ===
   useEffect(() => {
@@ -444,6 +468,7 @@ function AddDialog({ item, onClose, onSave, currentTheme }) {
       totalEpisodes: formData.type !== 'movie' ? parseInt(formData.totalEpisodes) : undefined,
       watchedEpisodes: formData.type !== 'movie' ? parseInt(formData.watchedEpisodes) : 0,
       url: formData.url.trim() || undefined,
+      apiUrl: formData.apiUrl.trim() || undefined, // Ссылка из API
       imageUrl: formData.imageUrl || undefined,
       year: formData.year ? parseInt(formData.year) : undefined,
       rating: formData.rating || 0,
@@ -461,6 +486,8 @@ function AddDialog({ item, onClose, onSave, currentTheme }) {
     // Сбрасываем флаг выбора результата при ручном редактировании названия
     if (field === 'title' && isResultSelected) {
       setIsResultSelected(false);
+      setTitleStatus(null); // Сбрасываем статус при ручном изменении названия
+      setResults([]); // Очищаем результаты поиска при ручном изменении названия
     }
   };
 
@@ -497,8 +524,10 @@ function AddDialog({ item, onClose, onSave, currentTheme }) {
     setIsResultSelected(true);
     handleChange('title', r.title || formData.title);
     handleChange('url', r.url || formData.url);
+    handleChange('apiUrl', r.url || ''); // Сохраняем ссылку из API
     handleChange('imageUrl', r.imageUrl || formData.imageUrl);
     if (r.year) handleChange('year', r.year);
+    if (r.apiRating) handleChange('apiRating', r.apiRating);
 
     // Автоматически добавляем теги на основе жанров (без ограничений)
     if (r.tags && r.tags.length > 0) {
@@ -509,11 +538,24 @@ function AddDialog({ item, onClose, onSave, currentTheme }) {
       }
     }
 
-    // для сериалов TMDB — подтянем количество серий
-    if (r.source === 'tmdb' && r.type === 'series') {
-      const details = await getSeriesDetailsRU(r.id);
-      if (details?.totalEpisodes) handleChange('totalEpisodes', details.totalEpisodes);
-      if (details?.year && !r.year) handleChange('year', details.year);
+    // Проверяем статус для аниме и манги из Shikimori
+    if ((r.type === 'anime' || r.type === 'manga') && r.source === 'shikimori' && r.id) {
+      setIsCheckingStatus(true);
+      setTitleStatus(null);
+      
+      try {
+        const status = await checkTitleStatus(r.id, r.type);
+        setTitleStatus(status);
+        
+        // Обновляем количество серий/глав если получили актуальную информацию
+        if (status && status.episodes) {
+          handleChange('totalEpisodes', status.episodes);
+        }
+      } catch (error) {
+        console.error('Error checking title status:', error);
+      } finally {
+        setIsCheckingStatus(false);
+      }
     }
 
     // для манги Shikimori — подтянем количество глав
@@ -615,13 +657,40 @@ function AddDialog({ item, onClose, onSave, currentTheme }) {
                         <RText>
                           <RTitle>{r.title}</RTitle>
                           <RMeta>
-                            {(r.year ? `${r.year} • ` : '') + (r.type === 'anime' ? 'Аниме' : r.type === 'movie' ? 'Фильм' : r.type === 'series' ? 'Сериал' : r.type === 'manga' ? 'Манга' : 'Неизвестно')}
+                            {(r.year ? `${r.year} • ` : '') + 
+                             (r.type === 'anime' ? 'Аниме' : r.type === 'movie' ? 'Фильм' : r.type === 'series' ? 'Сериал' : r.type === 'manga' ? 'Манга' : 'Неизвестно') +
+                             (r.apiRating ? ` • ${r.apiRating}` : '')}
                           </RMeta>
                         </RText>
                       </ResultItem>
                     ))}
                   </AnimatePresence>
                 </Results>
+              )}
+
+              {/* Индикатор статуса аниме/манги */}
+              {isCheckingStatus && (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 12, 
+                  padding: 16, 
+                  background: getTheme(currentTheme).surfaceSecondary,
+                  borderRadius: 12,
+                  margin: '12px 0'
+                }}>
+                  <Loader2 size={20} className="animate-spin" style={{ color: getTheme(currentTheme).accent }} />
+                  <span style={{ color: getTheme(currentTheme).textSecondary }}>
+                    Проверяем статус...
+                  </span>
+                </div>
+              )}
+              
+              {titleStatus && (
+                <TitleStatusIndicator 
+                  statusInfo={titleStatus} 
+                  currentTheme={currentTheme} 
+                />
               )}
 
               <Row>

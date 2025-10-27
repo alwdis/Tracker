@@ -179,7 +179,7 @@ function createWindow() {
   }
 
   mainWindow = new BrowserWindow({
-    width: 1400, height: 900, minWidth: 1000, minHeight: 700,
+    width: 1600, height: 1000, minWidth: 900, minHeight: 600,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

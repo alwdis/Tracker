@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import styled, { createGlobalStyle, ThemeProvider } from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Film, Tv, Play, BookOpen, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Tag, Filter, RefreshCw, Cloud, Database, Heart, Palette } from 'lucide-react';
+import { Plus, Film, Tv, Play, BookOpen, Search as SearchIconLucide, X, BarChart3, Sun, Moon, Tag, Filter, RefreshCw, Cloud, Database, Heart, Palette, Bell } from 'lucide-react';
 import { APP_VERSION } from './version';
 import debounce from 'lodash.debounce';
+import { notificationService } from './lib/notificationService';
+import { backgroundSyncService } from './lib/backgroundSyncService';
 
 // Импортируем компоненты напрямую для отладки
 import AddDialog from './components/AddDialog';
@@ -16,6 +18,7 @@ import UpdateDialog from './components/UpdateDialog';
 import UpdateButtonComponent from './components/UpdateButton';
 import ThemeSelector from './components/ThemeSelector';
 import VirtualizedMediaGrid from './components/VirtualizedMediaGrid';
+import NotificationSettingsDialog from './components/NotificationSettingsDialog';
 
 // Импортируем новую систему тем
 import { themes, getTheme } from './themes';
@@ -614,6 +617,7 @@ function App() {
   const [showThemeSelector, setShowThemeSelector] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
+  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   
 
   // Debounced поиск
@@ -640,6 +644,35 @@ function App() {
     if (savedTheme && themes[savedTheme]) {
       setCurrentTheme(savedTheme);
     }
+    
+    // Инициализация сервисов уведомлений и фоновой синхронизации
+    const initializeServices = async () => {
+      try {
+        // Запрашиваем разрешение на уведомления
+        await notificationService.requestPermission();
+        
+        // Настраиваем связь между сервисами
+        backgroundSyncService.setNotificationService(notificationService);
+        
+        // Запускаем сервис уведомлений
+        notificationService.start(media);
+        
+        // Запускаем фоновую синхронизацию
+        backgroundSyncService.start(media);
+        
+        console.log('Notification and background sync services initialized');
+      } catch (error) {
+        console.error('Failed to initialize services:', error);
+      }
+    };
+    
+    initializeServices();
+    
+    // Очистка при размонтировании
+    return () => {
+      notificationService.stop();
+      backgroundSyncService.stop();
+    };
   }, []);
 
   useEffect(() => {
@@ -714,8 +747,35 @@ function App() {
       setMedia(newMedia);
       if (window.electronAPI) await window.electronAPI.writeMediaData(newMedia);
       else localStorage.setItem('media-data', JSON.stringify(newMedia));
+      
+      // Обновляем сервисы с новыми данными
+      if (notificationService.isRunning) {
+        notificationService.start(newMedia);
+      }
+      if (backgroundSyncService.isRunning) {
+        backgroundSyncService.start(newMedia);
+      }
     } catch (e) { console.error('Error saving media data:', e); }
   }, []);
+
+  // Функция для проверки, должен ли тайтл быть отслеживаемым
+  const shouldTrackTitle = useCallback((item) => {
+    // Отслеживаем только аниме и мангу со статусом "watching" (Смотрю/Читаю)
+    if (item.type !== 'anime' && item.type !== 'manga') return false;
+    if (item.status !== 'watching') return false;
+    
+    // Проверяем, есть ли URL Shikimori для получения статуса выпуска
+    // Используем apiUrl (из API) или url (пользовательская ссылка)
+    const shikimoriUrl = item.apiUrl || item.url;
+    if (!shikimoriUrl || !shikimoriUrl.includes('shikimori.one')) return false;
+    
+    return true;
+  }, []);
+
+  // Функция для получения отслеживаемых тайтлов
+  const getTrackableTitles = useCallback((mediaItems) => {
+    return mediaItems.filter(shouldTrackTitle);
+  }, [shouldTrackTitle]);
 
   const addMediaItem = useCallback((item) => {
     const newItem = {
@@ -726,10 +786,20 @@ function App() {
       comment: item.comment || '',
       tags: item.tags || []
     };
-    saveMediaData([...media, newItem]);
-  }, [media, saveMediaData]);
+    const newMedia = [...media, newItem];
+    
+    // Проверяем, нужно ли добавить новый тайтл в отслеживаемые
+    if (shouldTrackTitle(newItem)) {
+      const trackableTitles = getTrackableTitles(newMedia);
+      notificationService.updateSettings(notificationService.notificationSettings, trackableTitles);
+      backgroundSyncService.updateSettings(backgroundSyncService.settings, trackableTitles);
+    }
+    
+    saveMediaData(newMedia);
+  }, [media, saveMediaData, shouldTrackTitle, getTrackableTitles]);
 
   const updateMediaItem = useCallback((id, updates) => {
+    const oldItem = media.find(item => item.id === id);
     const newMedia = media.map(item => {
       if (item.id !== id) return item;
       const next = { ...item, ...updates };
@@ -739,15 +809,52 @@ function App() {
       }
       return next;
     });
+    
+    // Проверяем изменения в отслеживании
+    const wasTrackable = oldItem ? shouldTrackTitle(oldItem) : false;
+    const isTrackable = shouldTrackTitle({ ...oldItem, ...updates });
+    
+    // Если статус изменился с/на отслеживаемый, обновляем сервисы уведомлений
+    if (wasTrackable !== isTrackable) {
+      const trackableTitles = getTrackableTitles(newMedia);
+      notificationService.updateSettings(notificationService.notificationSettings, trackableTitles);
+      backgroundSyncService.updateSettings(backgroundSyncService.settings, trackableTitles);
+    }
+    
     saveMediaData(newMedia);
-  }, [media, saveMediaData]);
+  }, [media, saveMediaData, shouldTrackTitle, getTrackableTitles]);
 
-  const deleteMediaItem = useCallback((id) => saveMediaData(media.filter(i => i.id !== id)), [media, saveMediaData]);
+  const deleteMediaItem = useCallback((id) => {
+    const itemToDelete = media.find(item => item.id === id);
+    const newMedia = media.filter(i => i.id !== id);
+    
+    // Если удаляемый тайтл был отслеживаемым, обновляем сервисы
+    if (itemToDelete && shouldTrackTitle(itemToDelete)) {
+      const trackableTitles = getTrackableTitles(newMedia);
+      notificationService.updateSettings(notificationService.notificationSettings, trackableTitles);
+      backgroundSyncService.updateSettings(backgroundSyncService.settings, trackableTitles);
+    }
+    
+    saveMediaData(newMedia);
+  }, [media, saveMediaData, shouldTrackTitle, getTrackableTitles]);
   const editMediaItem = useCallback((item) => setEditingItem(item), []);
   const saveEditedItem = useCallback((updated) => { 
-    saveMediaData(media.map(i => i.id === updated.id ? updated : i)); 
+    const oldItem = media.find(item => item.id === updated.id);
+    const newMedia = media.map(i => i.id === updated.id ? updated : i);
+    
+    // Проверяем изменения в отслеживании при редактировании
+    const wasTrackable = oldItem ? shouldTrackTitle(oldItem) : false;
+    const isTrackable = shouldTrackTitle(updated);
+    
+    if (wasTrackable !== isTrackable) {
+      const trackableTitles = getTrackableTitles(newMedia);
+      notificationService.updateSettings(notificationService.notificationSettings, trackableTitles);
+      backgroundSyncService.updateSettings(backgroundSyncService.settings, trackableTitles);
+    }
+    
+    saveMediaData(newMedia); 
     setEditingItem(null); 
-  }, [media, saveMediaData]);
+  }, [media, saveMediaData, shouldTrackTitle, getTrackableTitles]);
   const handleRatingSave = useCallback((id, rating, comment) => { 
     updateMediaItem(id, { rating, comment }); 
     setRatingDialog({ show: false, item: null }); 
@@ -1132,6 +1239,10 @@ function App() {
               <Palette size={20}/>
             </IconButton>
 
+            <IconButton className="info" onClick={() => setNotificationDialogOpen(true)} title="Настройки уведомлений">
+              <Bell size={20}/>
+            </IconButton>
+
                    {typeof window !== 'undefined' && window.electronAPI && (
                      <UpdateButtonComponent 
                        currentVersion={APP_VERSION}
@@ -1251,6 +1362,13 @@ function App() {
           currentTheme={currentTheme}
           onThemeChange={handleThemeChange}
           isDarkMode={currentTheme === 'dark'}
+        />
+
+        <NotificationSettingsDialog
+          isOpen={notificationDialogOpen}
+          onClose={() => setNotificationDialogOpen(false)}
+          currentTheme={currentTheme}
+          mediaItems={media}
         />
 
       </AppContainer>

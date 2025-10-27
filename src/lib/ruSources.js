@@ -1,7 +1,6 @@
-// Русские источники: Kinopoisk (фильмы/сериалы) + Shikimori (аниме) + (опц.) TMDB
+// Русские источники: Kinopoisk (фильмы/сериалы) + Shikimori (аниме)
 // API ключи интегрированы в код для безопасности
 const KP_KEY   = '2ea0ffd7-e197-4f7f-8ffb-7ef5b525474a';
-const TMDB_KEY = 'd13fd5e17ec6be5cdd603058af30ad8a';
 
 // === Маппинг жанров в теги ===
 const genreToTagsMap = {
@@ -65,7 +64,7 @@ const genreToTagsMap = {
   'Thriller': ['триллер'],
   'Vampire': ['вампиры'],
   
-  // Кино жанры (Kinopoisk/TMDB) - русские названия
+  // Кино жанры (Kinopoisk) - русские названия
   'фантастика': ['научная фантастика'],
   'драма': ['драма'],
   'комедия': ['комедия'],
@@ -98,7 +97,7 @@ const genreToTagsMap = {
   'эротика': ['эротика'],
   'этнический': ['этнический'],
   
-  // TMDB жанры (английские)
+  // Английские жанры
   'Science Fiction': ['научная фантастика'],
   'Action': ['боевик'],
   'Adventure': ['приключения'],
@@ -195,6 +194,7 @@ export async function searchAnimeRU(query) {
     url: `https://shikimori.one${x.url || `/animes/${x.id}`}`,
     genres: x.genres || [],
     tags: getTagsFromGenres(x.genres || []),
+    apiRating: x.score ? Math.round(x.score * 10) / 10 : undefined, // Shikimori score от 1 до 10
     _raw: x,
   }));
 }
@@ -244,6 +244,7 @@ export async function searchMangaRU(query) {
     url: `https://shikimori.one${x.url || `/mangas/${x.id}`}`,
     genres: x.genres || [],
     tags: getTagsFromGenres(x.genres || []),
+    apiRating: x.score ? Math.round(x.score * 10) / 10 : undefined, // Shikimori score от 1 до 10
     _raw: x,
   }));
 }
@@ -265,19 +266,44 @@ export async function searchKinopoiskRU(query) {
   const json = await kpFetch(`/api/v2.1/films/search-by-keyword?keyword=${encodeURIComponent(query)}&page=1`);
   if (!json) return [];
   const films = json.films || [];
-  return films.map((f) => ({
-    source: 'kinopoisk',
-    id: f.filmId,
-    type: f.type === 'TV_SERIES' ? 'series' : 'movie',
-    title: f.nameRu || f.nameOriginal || '',
-    originalTitle: f.nameOriginal || f.nameEn || '',
-    year: f.year || undefined,
-    imageUrl: f.posterUrlPreview || f.posterUrl || undefined,
-    url: `https://www.kinopoisk.ru/film/${f.filmId}/`,
-    genres: f.genres || [],
-    tags: getTagsFromGenres(f.genres || []),
-    _raw: f,
-  }));
+  
+  // Получаем детали для каждого фильма чтобы взять рейтинги
+  const detailedFilms = await Promise.all(
+    films.map(async (f) => {
+      try {
+        const details = await kpFetch(`/api/v2.2/films/${f.filmId}`);
+        if (details) {
+          return {
+            ...f,
+            rating: details.rating,
+          };
+        }
+      } catch (e) {
+        console.warn('Failed to fetch details for Kinopoisk film', f.filmId, e);
+      }
+      return f;
+    })
+  );
+  
+  return detailedFilms.map((f) => {
+    // Берем Kinopoisk рейтинг (или IMDb если его нет)
+    const apiRating = f.rating?.kp || f.rating?.imdb;
+    
+    return {
+      source: 'kinopoisk',
+      id: f.filmId,
+      type: f.type === 'TV_SERIES' ? 'series' : 'movie',
+      title: f.nameRu || f.nameOriginal || '',
+      originalTitle: f.nameOriginal || f.nameEn || '',
+      year: f.year || undefined,
+      imageUrl: f.posterUrlPreview || f.posterUrl || undefined,
+      url: `https://www.kinopoisk.ru/film/${f.filmId}/`,
+      genres: f.genres || [],
+      tags: getTagsFromGenres(f.genres || []),
+      apiRating: apiRating ? Math.round(apiRating * 10) / 10 : undefined,
+      _raw: f,
+    };
+  });
 }
 
 export async function getSeriesDetailsRU(id, sourceHint) {
@@ -288,20 +314,6 @@ export async function getSeriesDetailsRU(id, sourceHint) {
       if (seasons && Array.isArray(seasons.items)) {
         const totalEpisodes = seasons.items.reduce((sum, s) => sum + (s.episodes?.length || 0), 0);
         return { totalEpisodes: totalEpisodes || undefined };
-      }
-    } catch (_) {}
-  }
-
-  // 2) Fallback: TMDB (если нужен)
-  if (sourceHint === 'tmdb' && TMDB_KEY) {
-    try {
-      const res = await fetch(`https://api.themoviedb.org/3/tv/${id}?language=ru-RU&api_key=${TMDB_KEY}`);
-      if (res.ok) {
-        const d = await res.json();
-        return {
-          totalEpisodes: typeof d.number_of_episodes === 'number' ? d.number_of_episodes : undefined,
-          year: d.first_air_date ? d.first_air_date.slice(0, 4) : undefined,
-        };
       }
     } catch (_) {}
   }
@@ -328,27 +340,41 @@ export async function getMangaDetailsRU(id) {
   return null;
 }
 
-// ---------- (опционально) TMDB поиск ----------
-async function tmdbSearch(kind, query) {
-  if (!TMDB_KEY) return [];
-  const url = `https://api.themoviedb.org/3/search/${kind}?query=${encodeURIComponent(query)}&language=ru-RU&include_adult=false&api_key=${TMDB_KEY}`;
-  const res = await fetch(url);
-  if (!res.ok) return [];
-  const json = await res.json();
 
-  return (json.results || []).map((r) => ({
-    source: 'tmdb',
-    id: r.id,
-    type: kind === 'movie' ? 'movie' : 'series',
-    title: (kind === 'movie' ? r.title : r.name) || '',
-    originalTitle: (kind === 'movie' ? r.original_title : r.original_name) || '',
-    year: (r.release_date || r.first_air_date) ? (r.release_date || r.first_air_date).slice(0, 4) : undefined,
-    imageUrl: r.poster_path ? `https://image.tmdb.org/t/p/w500${r.poster_path}` : undefined,
-    url: `https://www.themoviedb.org/${kind === 'movie' ? 'movie' : 'tv'}/${r.id}?language=ru-RU`,
-    genres: r.genre_ids || [],
-    tags: getTagsFromGenres(r.genre_ids || []),
-    _raw: r,
-  }));
+// ---------- Проверка статуса аниме/манги ----------
+export async function checkTitleStatus(shikimoriId, type) {
+  try {
+    const endpoint = type === 'anime' ? 'animes' : 'mangas';
+    const response = await fetch(`https://shikimori.one/api/${endpoint}/${shikimoriId}`, {
+      headers: { Accept: 'application/json' }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Добавляем задержку для соблюдения лимитов API
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    return {
+      id: data.id,
+      title: data.russian || data.name,
+      status: data.status, // 'released', 'ongoing', 'anons', 'completed'
+      episodes: data.episodes || data.chapters,
+      aired_on: data.aired_on,
+      released_on: data.released_on,
+      type: type,
+      isOngoing: data.status === 'ongoing',
+      isCompleted: data.status === 'completed',
+      isReleased: data.status === 'released',
+      isAnons: data.status === 'anons'
+    };
+  } catch (error) {
+    console.error(`Error checking ${type} status for ID ${shikimoriId}:`, error);
+    return null;
+  }
 }
 
 // ---------- Унифицированный поиск ----------
@@ -357,15 +383,12 @@ export async function searchRU(type, query) {
   if (type === 'anime')  return searchAnimeRU(query);
   if (type === 'manga')  return searchMangaRU(query);
 
-  // приоритет — Kinopoisk
+  // Используем Kinopoisk
   const kp = await searchKinopoiskRU(query);
   if (kp.length) {
     const filtered = kp.filter(i => (type === 'movie' ? i.type === 'movie' : i.type === 'series'));
     return filtered.length ? filtered : kp;
   }
 
-  // запасной вариант — TMDB (если ключ задан)
-  if (type === 'movie')  return tmdbSearch('movie', query);
-  if (type === 'series') return tmdbSearch('tv', query);
   return [];
 }

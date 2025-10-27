@@ -26,7 +26,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   disconnectFromYandexDisk: () => ipcRenderer.invoke('disconnect-from-yandex-disk'),
   checkYandexDiskConnection: () => ipcRenderer.invoke('check-yandex-disk-connection'),
   syncToYandexDisk: () => ipcRenderer.invoke('sync-to-yandex-disk'),
-  syncFromYandexDisk: () => ipcRenderer.invoke('sync-from-yandex-disk')
+  syncFromYandexDisk: () => ipcRenderer.invoke('sync-from-yandex-disk'),
+  
+  // Notification APIs
+  showNotification: (options) => ipcRenderer.invoke('show-notification', options),
+  requestNotificationPermission: () => ipcRenderer.invoke('request-notification-permission')
 });
 
 // Обработчик для диагностической информации
